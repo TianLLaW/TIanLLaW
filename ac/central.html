@@ -1,0 +1,1441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title></title>
+    <link rel="stylesheet" href="/plugin/iview/styles/iview.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div id="app"></div>
+
+<script type="text/x-template" id="main">
+    <Col class="cs-container" span="20" >
+    <slot name="breadcrumb" :breadcrumb="[$t('menu.ac'),$t('menu.ac_central')]"></slot>
+    <!-- 这个不能删除，用于面包屑显示 -->
+    <div class="cs-content">
+        <Row>
+            <Col :xs="globalConfig.xs">
+            <Card>
+                <Alert>
+                    {{ $t('ac_central.help') }}
+                </Alert>
+                <Row>
+                    <Col>
+                    <Button type="primary" :loading="apscanLoading" @click="apscanClick">{{ $t('ac_central.apscan') }}</Button>
+                    <Button type="primary" @click="setinfoClick">{{ $t('ac_central.setinfo') }}</Button>
+                    <Button type="primary" @click="letctlClick">{{ $t('ac_central.letctl') }}</Button>
+                    <Button type="primary" @click="timingRebootClick(true)" v-show="globalConfig.currentMode != 'BR'">{{ $t('ac_central.unified_change_ip') }}</Button>
+                    <Button type="primary" @click="rebootClick">{{ $t('ac_central.reboot') }}</Button>
+                    <Button type="primary" @click="showModel=true">{{ $t('ac_central.restore') }}</Button>
+                    <Tooltip trigger="hover" placement="top" :disabled="!usbState">
+                        <Button type="primary" @click="uploadClick" :disabled="usbState">{{ $t('ac_central.firmware_manage') }}</Button>
+                        <div slot="content" style="white-space: normal;"> {{ $t('ac_central.tip1') }} </div>
+                    </Tooltip>
+                    <Tooltip trigger="hover" placement="top" :disabled="!usbState">
+                        <Button type="primary" @click="firmwareClick" :disabled="usbState">{{ $t('ac_central.firmware') }}</Button>
+                        <div slot="content" style="white-space: normal;"> {{ $t('ac_central.tip1') }} </div>
+                    </Tooltip>
+					<Button type="primary" :loading="refreshLoading" @click="refreshStatusClick">{{ $t('ac_central.refresh') }}</Button>
+                    </Col>
+                    <br>
+                    <Row>
+                        <Col>
+                            <Col span="7">
+                                <AutoComplete
+                                  icon="ios-search"
+                                  v-model="currentSelect"
+                                  :placeholder="$t('ac_central.query_msg')" 
+                                  clearable>
+                                </AutoComplete>
+                            </Col>
+                            <Col span="4"  offset="1">
+                                <Button @click="handleSearch">{{ $t('ac_central.query') }}</Button>
+                            </Col>
+                        </Col>
+                    </Row><br>
+                    <Row>
+                        <Col>
+                        <Table border ref="tableSelect" :columns="centralColumns" :data="centralData" @on-selection-change="centralTable" :no-data-text="$t('common.no_data')"></Table>
+                        </Col><br>
+                        <Page :total="dataCount" :page-size="pageSize" placement="top" show-total show-sizer @on-change="changepage" :page-size-opts="pageSizeOpts"@on-page-size-change='handlePageSize'></Page>
+                    </Row>
+                </Row>
+            </Card>
+            </Col>
+        </Row>
+    </div>
+    <Modal
+            v-model="showModel"
+            :title="$t('ac_central.restore_set_title')"
+            @on-ok="ok"
+            @on-cancel="cancel"
+            :ok-text="$t('common.ok')"
+            :cancel-text="$t('common.cancel')"
+            >
+        <span>{{$t('ac_central.msg14')}}</span>
+    </Modal>
+
+    <Modal
+            v-model="setinfo"
+            :title="$t('ac_central.setinfo')"
+            :closable="false"
+            :mask-closable="false"
+    >
+        <Form ref="formSetinfo" :model="formSetinfo" :label-width="120" :rules="ruleSetinfo" label-position="left">
+            <FormItem :label="$t('ac_central.apname')" prop="apname">
+                <Input v-model="formSetinfo.apname" :maxlength="32"></Input>
+            </FormItem>
+            <FormItem :label="$t('ac_central.reboot_mode')">
+                <Select v-model="rebootmode">
+                    <Option value="0">{{ $t('ac_central.disable') }}</Option>
+                    <Option value="1">{{ $t('ac_central.timing_reboot') }}</Option>
+                    <Option value="2">{{ $t('ac_central.reboot_countdown') }}</Option>
+                </Select>
+            </FormItem>
+            <FormItem :label="$t('ac_central.week')"  v-if="rebootmode == '1'">
+                <Select v-model="formSetinfo.week">
+                    <Option value="255">{{ $t('ac_central.all') }}</Option>
+                    <Option value="128">{{ $t('ac_central.sun') }}</Option>
+                    <Option value="2">{{ $t('ac_central.mon') }}</Option>
+                    <Option value="4">{{ $t('ac_central.tue') }}</Option>
+                    <Option value="8">{{ $t('ac_central.wed') }}</Option>
+                    <Option value="16">{{ $t('ac_central.thu') }}</Option>
+                    <Option value="32">{{ $t('ac_central.fri') }}</Option>
+                    <Option value="64">{{ $t('ac_central.sat') }}</Option>
+                </Select>
+            </FormItem>
+			<FormItem :label="$t('ac_central.time')"  v-if="rebootmode == '1'">
+                <row>
+                    <Col span="6">
+                        <Select  v-model="formSetinfo.time[0]">
+                            <Option v-for="(i,v) in 24" :key="i" :value="v">{{v}}</Option>
+                        </Select>
+                    </Col>
+                    <Col span="2">&nbsp;&nbsp;&nbsp;:</Col>
+                    <Col span="6">
+                        <Select  v-model="formSetinfo.time[1]">
+                            <Option v-for="(i,v) in 60" :key="i" :value="v">{{v}}</Option>
+                        </Select>
+                    </Col>
+                    <Col span="7"><Span>{{$t('ac_central.times')}}</Span></Col>
+                </row>
+          </FormItem>
+            <FormItem :label="$t('ac_central.reboot_countdown')" prop="timedown" v-if="rebootmode == '2'">
+                <row>
+                    <Col span="8">
+                        <Input v-model="formSetinfo.timedown"></Input>
+                    </Col>
+                    <Col span="8">
+                        <Span>{{$t('ac_central.hour')}}</Span>
+                    </Col>
+                </row>
+
+            </FormItem>
+			 <FormItem :label="$t('ac_central.wlan_set')" prop="wlanset">
+                <Select v-model="wlanset" :disabled="getWlanState" :transfer="true" @on-change="showWlan">
+                    <Option value="1">2.4G</Option>
+                    <Option value="2">5G</Option>
+                </Select>
+            </FormItem>
+			<div v-show="wlanset == '1'">
+				<FormItem :label="$t('ac_central.ssid',[''])" prop="ssid2">
+					<Input v-model="formSetinfo.ssid2"  :maxlength="32"></Input>
+				</FormItem>
+				<FormItem :label="$t('ac_central.security',[''])" >
+					<i-switch v-model="securityMode2" size="large" >
+						<span slot="open">{{$t('ac_central.encryption')}}</span>
+						<span slot="close">{{$t('ac_central.unencrypted')}}</span>
+					</i-switch>
+					</Input>
+				</FormItem>
+				<FormItem :label="$t('ac_central.password')" prop="security2"  v-show="formSetinfo.securityMode2 == '1'" >
+					<Input v-model="formSetinfo.security2"></Input>
+				</FormItem>
+                <FormItem :label="$t('ac_central.bandwidth')" prop="band_width2">
+                    <Select v-model="formSetinfo.band_width2" :transfer="true">
+                        <Option value="0">20M</Option>
+                        <Option value="1">20M/40M</Option>
+                    </Select>
+                </FormItem>
+				<FormItem :label="$t('ac_central.channels',[])" prop="channel2">
+					<Select v-model="formSetinfo.channel2" :key="$t('ac_central.channels',[])" placement="top" :transfer="true">
+						<Option value="0">{{ $t('ac_central.auto_select') }}</Option>
+						<Option v-for="i in 13" :key="i" :value="i">{{ i }}</Option>
+					</Select>
+				</FormItem>
+				<FormItem :label="$t('ac_central.tx_powers',[])" prop="tx_power2">
+				<Select v-model="formSetinfo.tx_power2" placement="top" :transfer="true">
+					<Option v-for="i in txPower" :key="i" :value="i">{{ i+'%' }}</Option>
+				</Select>
+				</FormItem>
+				<FormItem :label="$t('ac_central.broad_ssid')" prop="hidessid2">
+					<i-switch v-model="formSetinfo.hidessid2" size="large" >
+						<span slot="open">{{ $t('ac_central.enabled') }}</span>
+						<span slot="close">{{ $t('ac_central.disable') }}</span>
+					</i-switch>
+				</FormItem>
+				<FormItem :label="$t('ac_central.isolation')" prop="wifi_quarantine2">
+					<i-switch v-model="formSetinfo.wifi_quarantine2" size="large" >
+						<span slot="open">{{ $t('ac_central.enabled') }}</span>
+						<span slot="close">{{ $t('ac_central.disable') }}</span>
+					</i-switch>
+				</FormItem>
+				<FormItem :label="$t('ac_central.max_num')" prop="maxusernumber2">
+					<Input v-model="formSetinfo.maxusernumber2"  style="width: 80px"  :maxlength="2"></Input>
+					<span>({{$t('ac_central.default_value')}}: 32)</span>
+				</FormItem>
+				<FormItem :label="$t('ac_central.vlan_mark')" prop="vlanid2">
+					<Input v-model="formSetinfo.vlanid2"  style="width: 80px"  :maxlength="4"></Input>
+					<span> ({{$t('ac_central.range')}} 0 - 4094,{{$t('ac_central.default')}} 0)</span>
+				</FormItem>
+			</div>
+			<div v-show="wlanset == '2'">
+				<FormItem :label="$t('ac_central.ssid',[''])" prop="ssid5">
+					<Input v-model="formSetinfo.ssid5"  :maxlength="32"></Input>
+				</FormItem>
+				<FormItem :label="$t('ac_central.security',[''])" >
+					<i-switch v-model="securityMode5" size="large" >
+						<span slot="open">{{$t('ac_central.encryption')}}</span>
+						<span slot="close">{{$t('ac_central.unencrypted')}}</span>
+					</i-switch>
+					</Input>
+				</FormItem>
+				<FormItem :label="$t('ac_central.password')" prop="security5"  v-show="formSetinfo.securityMode5 == '1'" >
+					<Input v-model="formSetinfo.security5"></Input>
+				</FormItem>
+                <FormItem :label="$t('ac_central.bandwidth')" prop="band_width5">
+                    <Select v-model="band_width5" :transfer="true">
+                        <Option value="0">20M</Option>
+                        <Option value="1">20M/40M</Option>
+                        <Option value="2">80M</Option>
+                    </Select>
+                </FormItem>
+                <FormItem :label="$t('ac_central.channels',[])" prop="channel5">
+                    <Select v-model="formSetinfo.channel5" :key="$t('ac_central.channels',[])" placement="top" :transfer="true">
+                        <Option value="0">{{ $t('ac_central.auto_select') }}</Option>
+                        <Option v-for="i in channel5Arr" :key="i" :value="i">{{ i }}</Option>
+                        <Option v-show="channelsStatus165" value="165">165</Option>
+                    </Select>
+                </FormItem>
+				<FormItem :label="$t('ac_central.tx_powers',[])" prop="tx_power5">
+				<Select v-model="formSetinfo.tx_power5" placement="top" :transfer="true">
+					<Option v-for="i in txPower" :key="i" :value="i">{{ i+'%' }}</Option>
+				</Select>
+				</FormItem>
+				<FormItem :label="$t('ac_central.broad_ssid')" prop="hidessid5">
+					<i-switch v-model="formSetinfo.hidessid5" size="large" >
+						<span slot="open">{{ $t('ac_central.enabled') }}</span>
+						<span slot="close">{{ $t('ac_central.disable') }}</span>
+					</i-switch>
+				</FormItem>
+				<FormItem :label="$t('ac_central.isolation')" prop="wifi_quarantine5">
+					<i-switch v-model="formSetinfo.wifi_quarantine5" size="large" >
+						<span slot="open">{{ $t('ac_central.enabled') }}</span>
+						<span slot="close">{{ $t('ac_central.disable') }}</span>
+					</i-switch>
+				</FormItem>
+				<FormItem :label="$t('ac_central.max_num')" prop="maxusernumber5">
+					<Input v-model="formSetinfo.maxusernumber5"  style="width: 80px"  :maxlength="2"></Input>
+					<span>({{$t('ac_central.default_value')}}: 32)</span>
+				</FormItem>
+				<FormItem :label="$t('ac_central.vlan_mark')" prop="vlanid5">
+					<Input v-model="formSetinfo.vlanid5"  style="width: 80px"  :maxlength="4"></Input>
+					<span> ({{$t('ac_central.range')}} 0 - 4094,{{$t('ac_central.default')}} 0)</span>
+				</FormItem>
+            </div>
+        </Form>
+        <div slot="footer">
+            <Button type="text" @click="setinfo=false">{{ $t('common.cancel') }}</Button>
+            <Button type="primary" @click="setinfoOk">{{ $t('common.apply') }}</Button>
+        </div>
+    </Modal>
+    <Modal
+            v-model="letctl"
+            :title="$t('ac_central.letctl')"
+    >
+        <Alert style="text-align: justify;">
+            {{ $t('ac_central.ledctl_tip') }}
+        </Alert>
+        <div style="text-align:center">
+            <Button type="primary" @click="letctlOk(2)">{{ $t('ac_central.open') }}</Button>&nbsp;&nbsp;
+            <Button type="primary" @click="letctlOk(1)">{{ $t('ac_central.finish') }}</Button>&nbsp;&nbsp;
+            <Button type="primary" @click="letctlOk(3)">{{ $t('ac_central.shut') }}</Button>
+        </div>
+        <div slot="footer"></div>
+    </Modal>
+    <Modal
+            v-model="uploads"
+            :title="$t('ac_central.firmware_manage')"
+    >
+        <Form :label-width="120" label-position="left">
+            <FormItem :label="$t('ac_central.upload')">
+                <!-- :max-size="upload.maxSize" -->
+                <Upload
+                        ref="upload"
+                        :action="upload.action"
+                        :data="upload.data"
+                        :format="upload.format"
+                        :on-format-error="formatError"
+                        :before-upload="handleBeforeUpload"
+                        :on-success="uploadSuccess"
+                >
+                    <Button icon="ios-cloud-upload-outline">{{ $t('ac_central.select_file')+' & '+$t('ac_central.file_upload')   }}</Button>
+                </Upload>
+            </FormItem>
+            <br>
+            <Row>
+                <Col>
+                <Table border :columns="columns" :data="firmData" :no-data-text="$t('common.no_data')"></Table>
+                </Col>
+            </Row>
+            <br>
+        </Form>
+        <div slot="footer">
+        </div>
+    </Modal>
+    <!-- 这个不能删除，用于底部显示 -->
+    <slot name="footer"></slot>
+    </Col>
+</script>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/iview/iview.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/layout.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+    var cs_main = {
+        template: "#main",
+        data: function() {
+            var _this = this;
+            return {
+                globalConfig: globalConfig,
+                applyLoading: false,
+                apscanLoading: false,
+				refreshLoading:false,
+                centralData: [],
+                usbState:false,
+                setinfo:false,
+                letctl:false,
+                reboot: false,
+                timingReboot: false,
+                restore: false,
+                uploads: false,
+                firmware: false,
+                txPower:['15','35','50','75','100'],
+                selectData:[],
+                apname:[],
+                oldApname:'',
+                ledStateInfo:[],
+                channel5Arr:['36','40','44','48','149','153','157','161'],
+                ledStatus:false,
+                wlanState:false,
+                wlanset:'1',
+                showModel:false,
+				securityMode2:false,
+                channelsStatus165:false,
+                band_width5:'2',
+                securityMode5:false,
+                letctlAuthpwd:'admin',
+                upload: {
+                    file: null,
+                    action: '/cgi-bin/cstecgi.cgi?action=upload&uploadApFw',
+                    format:['web'],
+                    data:{}
+                },
+                loadingStatus:false,
+                columns:[
+                    {
+                        type: 'index',
+                        width: 40,
+                        align: 'center'
+                    },{
+                        title: this.$t('ac_central.firmware_version'),
+                        key: 'version',
+                        align: 'center'
+                    },{
+                        title: this.$t('ac_central.operation'),
+                        key: 'action',
+                        width: 95,
+                        align: 'center',
+                        render: function (h, params) {
+                        return h('div', [
+                            h('Poptip', {
+                                props: {
+                                    confirm: true,
+                                    title: _this.$t('ac_central.msg12'),
+                                    "ok-text":_this.$t('common.ok'),
+                                    "cancel-text":_this.$t('common.cancel')
+                                },
+                                on: {
+                                    "on-ok": function(){
+                                        var postVar = {};
+                                        postVar.csid = params.row.version.split("_")[0];
+                                        uiPost.delApFWInfo(postVar,function(){
+                                            _this.$Message.success({content:_this.$t('ac_central.delete_success'),onClose:function(){
+                                                location.href = location.href;
+                                            }});
+                                        });
+                                    }
+                                }
+                            },
+                            [
+                                h('Button', {
+                                    props: {
+                                        type: 'error',
+                                        size: 'small'
+                                    }
+                                }, _this.$t('ac_central.delete'))
+                            ])
+                        ]);
+                        }
+                    }
+                ],
+                firmData:[],
+                percent: 0,
+                dataCount:0,// 初始化信息总条数
+                pageSize:10, // 每页显示多少条
+                historyData:[],
+                currentSelect: '',
+                dataArr:[],
+                tmpArr:[],
+                rebootmode:'0',
+                pageSizeOpts:[10,15,20,25,30,35,40]
+            }
+        },
+        computed: {
+            formSetinfo:function () {
+                return {
+                    apname: '',
+                    rebootmode:'0',
+                    week:'255',
+                    time:[0,0],
+                    timedown:'1',
+                    authpwd: 'admin',
+                    changePasswd: '',
+                    ipaddr: '',
+                    gateway: '',
+                    dns: '',
+                    ssid2: '',
+                    security2: '',
+                    securityMode2: '0',
+                    hidessid2:true,
+                    wifi_quarantine2:false,
+                    maxusernumber2:'32',
+                    vlanid2:'0',
+                    channel2: '0',
+                    band_width2:'0',
+                    tx_power2: '100',
+
+                    ssid5: '',
+                    security5: '',
+                    securityMode5: '0',
+                    hidessid5:true,
+                    wifi_quarantine5:false,
+                    maxusernumber5:'32',
+                    vlanid5:'0',
+                    channel5: '0',
+                    band_width5:'2',
+                    tx_power5: '100',
+                    other:[]
+                };
+            },
+            getWlanState:function () {
+                if(this.wlanState){
+                    return true;
+                }else{
+                    return false;
+                }
+            },
+            ruleSetinfo:function(){
+                var _this = this;
+                return {
+                    apname: [{ validator: function(r, v, f) {
+                        if (v.length>32) {
+                            f(_this.$t('ac_central.apname')+_this.$t('ac_central.msg3'));
+                        }
+                        f();
+                    },
+                        trigger: 'blur'
+                    }],
+                    ssid: [{ validator: function(r, v, f) {
+                        if (v == '') {
+                            f(_this.$t('ac_central.msg4'));
+                        }
+                        f();
+                    },
+                        trigger: 'blur'
+                    }],
+                    security: [{ validator: function(r, v, f) {
+                        if (v == '') {
+                            f(_this.$t('ac_central.msg2'));
+                        }
+                        f();
+                    },
+                        trigger: 'blur'
+                    }],
+                    timedown: [{validator: function(r, v, f) {
+                            var _s = cs.num(v);
+                            var s_ = cs.num_range(v,1,240);
+                            if (_s != 99) {
+                                f(_this.$t('ac_central.msg18'));
+                            }
+                            if(s_ != 99){
+                                f(_this.$t('ac_central.msg17'));
+                            }
+                            f();
+                        },
+                        trigger: 'blur'
+                    }]
+                }
+            },
+            centralColumns: function() {
+                var _this = this;
+                var columns = [];
+                columns.push({
+                    type: 'expand',
+                    width: 30,
+                    render: function(h, params) {
+                        if(!(params.row.apstate & (1<<8)) ){
+                            return h('Row',[]);
+                        }else{
+                            var _g2,ssid2g='',pass2g='',txpower2g='',vlanid2g='';
+							var _g5,ssid5g='',pass5g='',txpower5g='',vlanid5g='';
+
+                            if('1' == params.row.aptype && params.row.RADIO0 != undefined){
+								txpower2g = params.row.RADIO0['txpower'];
+                            }else if('2' == params.row.aptype && params.row.RADIO1 != undefined){
+								txpower5g = params.row.RADIO1['txpower'];
+                            }else if('3' == params.row.aptype && params.row.RADIO0 != undefined && params.row.RADIO1 != undefined){
+								txpower2g = params.row.RADIO0['txpower'];
+								txpower5g = params.row.RADIO1['txpower'];
+                            }
+							
+							if('1' == params.row.aptype && params.row.SSIDS != undefined){
+                                ssid2g = params.row.SSIDS['ssid'];
+								pass2g = params.row.SSIDS['passphrase'];
+								vlanid2g = params.row.SSIDS['vlanid'];
+                            }else if('2' == params.row.aptype && params.row.SSIDS1 != undefined){
+                                ssid5g = params.row.SSIDS1['ssid'];
+								pass5g = params.row.SSIDS1['passphrase'];
+								vlanid5g = params.row.SSIDS1['vlanid'];
+                            }else if('3' == params.row.aptype && params.row.SSIDS != undefined && params.row.SSIDS1 != undefined){
+                                ssid2g = params.row.SSIDS['ssid'];
+								pass2g = params.row.SSIDS['passphrase'];
+								vlanid2g = params.row.SSIDS['vlanid'];
+								ssid5g = params.row.SSIDS1['ssid'];
+								pass5g = params.row.SSIDS1['passphrase'];
+								vlanid5g = params.row.SSIDS1['vlanid'];
+                            }
+							
+							_g2 = ssid2g==''?'none':'block';
+							_g5 = ssid5g==''?'none':'block';
+							
+                            return h('Row',[
+                                h('Col',{props:{span:6}},[h('p',_this.$t('ac_central.ipaddr') + ': ' + params.row.ipaddr )]),
+                                h('Col',{props:{span:6}},[h('p',_this.$t('ac_central.netmask') + ': '+ params.row.netmask )]),
+                                h('Col',{props:{span:6}},[h('p',_this.$t('ac_central.default_gateway') + ': ' + params.row.gateway )]),
+                                h('Col',{props:{span:6}},[h('p','DNS: '+ params.row.pridns )]),
+                                h('Col',{props:{span:24}},[h('br')]),
+                                h('Col',{props:{span:6}},[h('p',_this.$t('ac_central.product_mode') + ': '+ params.row.model )]),
+                                h('Col',{props:{span:6}},[h('p',_this.$t('ac_central.firmware_version') + ': ' + params.row.softver + '.' + params.row.svnnum )]),
+                                h('Col',{props:{span:6}},[h('p',_this.$t('ac_central.authpwd') + ': '+ params.row.password )]),
+                                h('Col',{props:{span:6}},[h('p',_this.$t('ac_central.online_time') + ': '+ params.row.uptime )]),
+                                h('Col',{style:{display:_g2},props:{span:24}},[h('br')]),
+                                h('Col',{style:{display:_g2},props:{span:6}},[h('p',_this.$t('ac_central.ssid',[]) +':'+ssid2g)]),
+								h('Col',{style:{display:_g2},props:{span:6}},[h('p',_this.$t('ac_central.pass',[]) +':'+ pass2g)]),
+                                h('Col',{style:{display:_g2},props:{span:6}},[h('p',_this.$t('ac_central.tx_powers',[]) +':'+ txpower2g)]),
+                                h('Col',{style:{display:_g2},props:{span:6}},[h('p',_this.$t('ac_central.vlan_mark') +':'+ vlanid2g )]),
+								h('Col',{style:{display:_g5},props:{span:24}},[h('br')]),
+                                h('Col',{style:{display:_g5},props:{span:6}},[h('p',_this.$t('ac_central.ssid',['5G']) +':'+ssid5g)]),
+                                h('Col',{style:{display:_g5},props:{span:6}},[h('p',_this.$t('ac_central.pass',['5G']) +':'+ pass5g)]),
+                                h('Col',{style:{display:_g5},props:{span:6}},[h('p',_this.$t('ac_central.tx_powers',['5G']) +':'+ txpower5g)]),
+                                h('Col',{style:{display:_g5},props:{span:6}},[h('p',"5G "+_this.$t('ac_central.vlan_mark') +':'+ vlanid5g)])
+                            ]);
+                        }
+
+                    }
+                },{
+                    type: 'selection',
+                    key: 'id',
+                    width: "60"
+                }
+                );
+                if(_this.ledStatus){
+                    columns.push({
+                        title: this.$t('ac_central.letctl'),
+                        key: 'id',
+                        width: "80",
+                        align:"center",
+                        render: function(h, params) {
+                            _this.ledStateInfo[params.index].color = _this.ledStateInfo[params.index].state == '2'? "#f50" : "#000";
+                            return  h('Icon', {
+                                style:{
+                                    cursor: 'pointer',
+                                    color: _this.ledStateInfo[params.index].color
+                                },
+                                props: {
+                                    type: "ios-lightbulb-outline"
+                                },
+                                nativeOn: {
+                                    click: function () {
+                                        var postVar = {};
+                                        postVar.id = params.row.id;
+                                        if('2' == _this.ledStateInfo[params.index].state){
+                                            _this.ledStateInfo[params.index].state = '1';
+                                            _this.ledStateInfo[params.index].color = '#000';
+                                            postVar.ledState = '1';
+                                        }else{
+                                            _this.ledStateInfo[params.index].state = '2';
+                                            _this.ledStateInfo[params.index].color = '#f50';
+                                            postVar.ledState = '2';
+                                        }
+                                        uiPost.setApLedState(postVar,function(data){
+                                            _this.$Message.success({content: _this.$t('ac_central.set_success'), onClose: function () {
+                                                    location.href = location.href;
+                                                }
+                                            });
+                                        });
+                                    }
+                                }
+                            });
+                        }
+                    })
+                }
+                columns.push({
+                    title: this.$t('ac_central.apname'),
+                    key: 'apname',
+                    sortable: true,
+                    render: function(h, params) {
+                        var name = _this.$t('ac_central.unknown');
+                        if (params.row.apname != '' && null != params.row.apname) {
+                            name = params.row.apname;
+                        }
+                        if(!(params.row.apstate & (1<<8)) ){
+                            if(name == _this.$t('ac_central.unknown')){
+                                return h('Input', {
+                                    props: {
+                                        disabled:"disabled",
+                                        placeholder :name
+                                    }
+                                });
+                            }else{
+                                return h('Input', {
+                                    props: {
+                                        disabled:"disabled",
+                                        value :name
+                                    }
+                                });
+                            }
+                        }else{
+                            if(name == _this.$t('ac_central.unknown')){
+                                return h('Input', {
+                                    props: {
+                                        placeholder :name
+                                    },
+                                    on:{
+                                        'on-change':function (e) {
+                                            _this.apname[params.index] = e.target.value;
+                                        }
+                                    }
+                                });
+                            }else{
+                                return h('Input', {
+                                    props: {
+                                        placeholder :_this.apname[params.index],
+                                        value :_this.apname[params.index]
+                                    },
+                                    on:{
+                                        'on-change':function (e) {
+                                            _this.apname[params.index] = e.target.value;
+                                        }
+                                    }
+                                });
+                            }
+                        }
+                        
+                    }
+                }, {
+                    title: this.$t('ac_central.macaddr'),
+                    key: 'apmac',
+                    sortable: true
+                },{
+                    title: this.$t('ac_central.ipaddr'),
+                    key: 'ipaddr',
+                    sortable: true,
+                    render: function(h, params) {
+                        return h('a', {
+                            attrs: {
+                                href: 'http://' + params.row.ipaddr,
+                                target: '_blank'
+                            },
+                            domProps: {
+                                innerHTML: params.row.ipaddr
+                            }
+                        });
+                    }
+                }, {
+                    title: this.$t('ac_central.channel'),
+                    key: 'channel',
+                    width: "90",
+                    align:"center",
+					render: function(h, params) {
+                        var channel = '';
+                        if(params.row.aptype==1) {
+							if(params.row.RADIO0!=undefined){
+							    if(params.row.RADIO0['channel']=='0')
+								    channel = _this.$t('ac_central.auto');
+								else
+							        channel = params.row.RADIO0['channel'];
+								
+							}
+                        }else if(params.row.aptype==3) {
+							if(params.row.RADIO0!=undefined){
+							    if(params.row.RADIO0['channel']=='0')
+								    channel = _this.$t('ac_central.auto');
+								else
+							        channel = params.row.RADIO0['channel'];
+								
+							}
+							if(params.row.RADIO1!=undefined){
+							    if(params.row.RADIO1['channel']=='0')
+								    channel += "/" + _this.$t('ac_central.auto');
+								else
+							        channel += "/" + params.row.RADIO1['channel'];
+							}
+						}
+                        return h('div',channel);
+                    }
+                },{
+                    title: this.$t('ac_central.clientconn'),
+                    key: 'clientconn',
+					width: "80",
+                    align:"center",
+					render: function(h, params) {
+                        var clientconn = '';
+                        if(params.row.aptype==1) {
+							if(params.row.RADIO0!=undefined)
+								clientconn = params.row.RADIO0['clientnum'];
+                        }else if(params.row.aptype==3) {
+							if(params.row.RADIO0!=undefined)
+							    clientconn = params.row.RADIO0['clientnum'];
+							else
+							    clientconn = "0";
+							
+							if(params.row.RADIO1!=undefined)
+								clientconn += "/" + params.row.RADIO1['clientnum'];
+							else
+							    clientconn += "/0";
+						}
+                        return h('div',clientconn);
+                    }
+                },{
+                    title: this.$t('ac_central.device_status'),
+                    key: 'apstate',
+                    sortable: true,
+                    render: function(h, params) {
+                        var apstatus = '';
+                        if(!(params.row.apstate & (1<<8)) ) {
+                            apstatus = _this.$t('ac_central.no_same_segment');
+                        }
+						else if(params.row.apstatus == 0) {
+                            apstatus = _this.$t('ac_central.user_online');
+                        }else if(params.row.apstatus == 2) {
+                            apstatus = _this.$t('ac_central.user_rebooting');
+                        }else if(params.row.apstatus == 3) {
+                            apstatus = _this.$t('ac_central.user_updateing');
+                        }else if(params.row.apstatus == 4) {
+                            apstatus = _this.$t('ac_central.user_configing');
+                        }else if(params.row.apstatus == 5) {
+                            apstatus = _this.$t('ac_central.user_no_authority');
+                        }else {
+                            apstatus = _this.$t('ac_central.user_offline');
+                        }
+                        
+                        return h('div',apstatus);
+                    }
+                },
+                {
+                    title: this.$t('ac_central.operation'),
+                    key: 'operation',
+                    align: 'center',
+                    render: function(h, params) {
+                        if(!(params.row.apstate & (1<<8))){
+                            if(_this.globalConfig.currentMode != "BR"){
+                                return [
+                                    h('Button', {
+                                        props: {
+                                            type: 'primary',
+                                            size: 'small'
+                                        },
+                                        on: {
+                                            click:function () {
+                                                var postVar = {};
+                                                postVar.apmac = params.row.apmac;
+                                                uiPost.setApIp(postVar);
+                                                var time = 12;
+                                                _this.$Modal.success({
+                                                    loading:true,
+                                                    render: function(h) {
+                                                        return h('div',[
+                                                            _this.$t('common.loading'),
+                                                            h('Progress',{
+                                                                attrs:{ percent:_this.percent }
+                                                            })
+                                                        ])
+                                                    }
+                                                });
+                                                var percentTimer = setInterval(function(){
+                                                    if (_this.percent>=100) {
+                                                        clearInterval(percentTimer);
+                                                        location.href = location.href;
+                                                    }
+                                                    _this.percent++;
+                                                },cs.getTimer(time));
+                                            }
+                                        }
+                                    }, _this.$t('ac_central.unified_change_ip'))
+                                ]
+                            }                            
+                        }else{
+                            return [
+                                h('Button',{
+                                    props: {
+                                        type: 'primary',
+                                        size: 'small'
+                                    },
+                                    on: {
+                                        click:function () {
+                                            var newapname = _this.apname[params.index];
+                                            var apname = params.row.apname;
+                                            if (newapname && apname == newapname) {
+                                                _this.$Message.error(_this.$t('ac_central.msg5'));
+                                                return false;
+                                            }
+                                            var postVar = {};
+                                            postVar.apid = params.row.id;
+                                            postVar.apname = newapname == "" ? apname : newapname;
+                                            uiPost.setApName(postVar,function(data) {
+                                                if (data.success) {
+                                                    _this.$Message.success({content: _this.$t("ac_central.modify_success"), onClose: function () {
+                                                       // location.href = location.href;
+                                                    }
+                                                    });
+                                                } else {
+                                                    _this.$Message.error({content:_this.$t('ac_central.modify_fail'),duration:5});
+                                                }
+
+                                            });
+                                        }
+                                    }
+                                }, _this.$t("ac_central.submit")
+                                )]
+                        }
+                    }
+                });
+                return columns;
+            }
+        },
+        created: function() {
+            var _this = this;
+            uiPost.getGroupApList(function(data){
+                _this.centralData = data;
+                _this.dataArr = data;
+                _this.historyData = data;
+                _this.apscanLoading = false;
+                for(var x in data){
+                    if('2' == data[x].ledstate){
+                        _this.ledStatus = true;
+                        break;
+                    }
+                }
+                for(var i in data){
+                    _this.apname[i] = data[i].apname;
+                    _this.ledStateInfo[i] = [];
+                    if('2' == data[i].ledstate){
+                        _this.ledStateInfo[i].state = "2";
+                        _this.ledStateInfo[i].color = "#f50";
+                    }else{
+                        _this.ledStateInfo[i].state = "1";
+                        _this.ledStateInfo[i].color = "#000";
+                    }
+                }
+                _this.pageArr();
+            });
+            uiPost.getUsbState(function(data){
+                _this.usbState = data.usbState != "1" ? true : false; 
+            });
+            uiPost.getFwList(function(data){
+                var j=0, arr = [];
+                for(var i=0;i<data.length;i++){
+                     if(data[i].filepath != ""){
+                        arr[j] = {};
+                        arr[j].id = data[i].id;
+                        arr[j].version = data[i].csid+"_"+data[i].filepath.split("_")[7];
+                        arr[j].filepath = data[i].filepath;
+                        j++;
+                    }
+                }
+                _this.firmData = arr;
+            });
+        },
+        watch:{
+			securityMode2:function () {
+                if(this.securityMode2){
+                    this.formSetinfo.securityMode2 = '1';
+                }else{
+                    this.formSetinfo.securityMode2 = '0'
+                }
+            },
+			securityMode5:function () {
+                if(this.securityMode5){
+                    this.formSetinfo.securityMode5 = '1';
+                }else{
+                    this.formSetinfo.securityMode5 = '0'
+                }
+            },
+            band_width5:function () {
+                var _this = this;
+                _this.formSetinfo.band_width5 = _this.band_width5;
+                if('0' == _this.band_width5 && '2' != _this.band5){
+                    _this.channelsStatus165 = true;
+                }else{
+                    if('165' == _this.formSetinfo.channel5){
+                        _this.formSetinfo.channel5 = '0';
+                    }
+                    _this.channelsStatus165 = false;
+                }
+            },
+            rebootmode:function () {
+                var _this = this;
+                _this.formSetinfo.rebootmode = _this.rebootmode;
+            }
+        },
+        methods: {
+            init: function() {
+                var _this = this;
+                uiPost.ScanAp(function(){
+                    var wtime = 6;
+                    _this.percent = 0;
+                    var percentTimer = setInterval(function(){
+                        if (_this.percent>=100) {
+                            clearInterval(percentTimer);
+                            uiPost.getGroupApList(function(data) {
+                                _this.centralData = data;
+                                _this.historyData = data;
+                                _this.apscanLoading = false;
+                                for(var i in data){
+                                    _this.apname[i] = data[i].apname;
+                                }
+                                _this.pageArr();
+                            });
+                        }
+                        _this.percent++;
+                    },cs.getTimer(wtime));
+                });
+            },
+            ok:function () {
+                this.restoreClick();
+            },
+            cancel:function () {
+                var _this = this;
+                _this.showModel = false;
+            },
+            apscanClick: function(){
+                var _this = this;
+                _this.apscanLoading = true;
+                _this.init();
+            },
+            setinfoClick: function(){
+                var _this = this;
+                var temp = this.selectData;
+                if (temp.length <= 0) {
+                    this.$Message.error(this.$t('ac_central.msg1'));
+                    return false;
+                }
+                if (temp.length == 1) {
+                    this.formSetinfo.apname = temp[0].apname;
+                    this.oldApname = temp[0].apname;
+                    _this.rebootmode = temp[0].rebooSchedule.schMode;
+                    _this.formSetinfo.week = temp[0].rebooSchedule.schWeek;
+                    _this.formSetinfo.time[0] = Number(temp[0].rebooSchedule.schHour);
+                    _this.formSetinfo.time[1] = Number(temp[0].rebooSchedule.schMinute);
+                    _this.formSetinfo.timedown = temp[0].rebooSchedule.recHour;
+
+                    var postVar = {};
+                    postVar.apid = temp[0].id;
+                    uiPost.getApStatusConfig(postVar,function(data){
+                        if(data.SSIDS.ssid != undefined){
+                            _this.formSetinfo.ssid2 = data.SSIDS.ssid;
+                            if('0' == data.SSIDS.encryption){
+                                _this.formSetinfo.securityMode2 = '0';
+                                _this.securityMode2 = false;
+                            }else{
+                                _this.formSetinfo.securityMode2 = '1';
+                                _this.securityMode2 = true;
+                            }
+                            _this.formSetinfo.security2    = data.SSIDS.passphrase;
+                            if('0' == data.SSIDS.hide){
+                                _this.formSetinfo.hidessid2 = true;
+                            }else{
+                                _this.formSetinfo.hidessid2 = false;
+                            }
+                            if('0' == data.SSIDS.isolate){
+                                _this.formSetinfo.wifi_quarantine2 = false;
+                            }else{
+                                _this.formSetinfo.wifi_quarantine2 = true;
+                            }
+                            _this.formSetinfo.maxusernumber2 = data.SSIDS.stanum;
+                            _this.formSetinfo.vlanid2      = data.SSIDS.vlanid;
+							
+                            _this.formSetinfo.band2       = data.RADIO0.wirelessmode;
+                            _this.formSetinfo.channel2    = Number(data.RADIO0.channel);
+                            _this.formSetinfo.band_width2 = data.RADIO0.htmode;
+                            _this.formSetinfo.tx_power2   = data.RADIO0.txpower;
+
+							if(data.SSIDS1.ssid != undefined){
+								_this.formSetinfo.ssid5 = data.SSIDS1.ssid;
+								if('0' == data.SSIDS1.encryption){
+									_this.formSetinfo.securityMode5 = '0';
+									_this.securityMode5 = false;
+								}else{
+									_this.formSetinfo.securityMode5 = '1';
+									_this.securityMode5 = true;
+								}
+								_this.formSetinfo.security5    = data.SSIDS1.passphrase;
+								if('0' == data.SSIDS1.hide){
+									_this.formSetinfo.hidessid5 = true;
+								}else{
+									_this.formSetinfo.hidessid5 = false;
+								}
+								if('0' == data.SSIDS1.isolate){
+									_this.formSetinfo.wifi_quarantine5 = false;
+								}else{
+									_this.formSetinfo.wifi_quarantine5 = true;
+								}
+								_this.formSetinfo.maxusernumber5 = data.SSIDS1.stanum;
+								_this.formSetinfo.vlanid5      = data.SSIDS1.vlanid;
+								_this.formSetinfo.channel5    = data.RADIO1.channel;
+								_this.formSetinfo.band_width5 = data.RADIO1.htmode;
+								_this.formSetinfo.tx_power5   = data.RADIO1.txpower;
+							}
+                            if('1' == temp[0].aptype){
+                                _this.wlanset    = '1';
+                                _this.wlanState = true;
+                            }else if('2' == temp[0].aptype){
+                                _this.wlanset    = '2';
+                                _this.wlanState = true;
+                            }else{
+                                _this.wlanset    = '1';
+                                _this.wlanState = false;
+                            }
+                        }
+                    });
+                }else{
+                    _this.wlanState = false;
+                    _this.formSetinfo.apname    = '';
+                    _this.formSetinfo.ssid    = '';
+                    _this.formSetinfo.securityMode  = '0' ? false : true;
+                    _this.formSetinfo.security    = '';
+                    _this.formSetinfo.hidessid    = true;
+                    _this.formSetinfo.wifi_quarantine    = false;
+                    _this.formSetinfo.maxusernumber    = '32';
+                    _this.formSetinfo.vlanid    = '0';
+                    _this.wlanset    = '1';
+
+                    _this.formSetinfo.channel2    = '0';
+                    _this.formSetinfo.band_width2    = '0';
+                    _this.formSetinfo.tx_power2    = '100';
+
+                    _this.formSetinfo.channel5    = '0';
+                    _this.formSetinfo.band_width5    = '2';
+                    _this.formSetinfo.tx_power5    = '100';
+                }
+                this.setinfo = true;
+            },
+            centralTable: function(selection){
+                this.selectData = selection;
+            },
+			showWlan: function(){
+                
+            },
+            setinfoOk: function(){
+                var _this = this;
+                var temp = this.selectData;
+                var idArr = [];
+                var postVar = {};
+                for(var i in temp){
+                    idArr[i] = temp[i].id
+                }
+
+
+                postVar.apid = idArr.join(',');
+                postVar.apname = _this.formSetinfo.apname == "" ? _this.oldApname : _this.formSetinfo.apname;
+
+				if(_this.formSetinfo.rebootmode == '2') {
+                    if (99 != cs.num(_this.formSetinfo.timedown)) {
+                        _this.$Message.error({content: _this.$t('ac_central.msg18'), duration: 5});
+                        return false;
+                    }
+                    if (99 != cs.num_range(_this.formSetinfo.timedown, 1, 240)) {
+                        _this.$Message.error({content: _this.$t('ac_central.msg17'), duration: 5});
+                        return false;
+                    }
+                }
+                var sch = {};
+				sch.schMode = _this.formSetinfo.rebootmode;
+				sch.schWeek = _this.formSetinfo.week;
+                sch.schHour = String(_this.formSetinfo.time[0]);
+                sch.schMinute = String(_this.formSetinfo.time[1]);
+                sch.recHour = _this.formSetinfo.timedown;
+                postVar.rebooSchedule = sch;
+				var pSsid,pSecurityMode,pSecurity,pHidessid,pWifi_quarantine,pMaxusernumber,pVlanid;
+				var pChannel,pBand_width,pTx_power;
+				
+				if(_this.wlanset=='1'){
+					pSsid = _this.formSetinfo.ssid2;
+					pSecurityMode = _this.formSetinfo.securityMode2;
+					pSecurity = _this.formSetinfo.security2;
+					pHidessid = _this.formSetinfo.hidessid2;
+					pWifi_quarantine = _this.formSetinfo.wifi_quarantine2;
+					pMaxusernumber = _this.formSetinfo.maxusernumber2;
+					pVlanid = _this.formSetinfo.vlanid2;
+					
+					pChannel = _this.formSetinfo.channel2;
+					pBand_width = _this.formSetinfo.band_width2;
+					pTx_power = _this.formSetinfo.tx_power2;
+				}else{
+					pSsid = _this.formSetinfo.ssid5;
+					pSecurityMode = _this.formSetinfo.securityMode5;
+					pSecurity = _this.formSetinfo.security5;
+					pHidessid = _this.formSetinfo.hidessid5;
+					pWifi_quarantine = _this.formSetinfo.wifi_quarantine5;
+					pMaxusernumber = _this.formSetinfo.maxusernumber5;
+					pVlanid = _this.formSetinfo.vlanid5;
+					
+					pChannel = _this.formSetinfo.channel5;
+					pBand_width = _this.formSetinfo.band_width5;
+					pTx_power = _this.formSetinfo.tx_power5;
+				}
+				
+                var res = cs.ssid(pSsid);
+                if(0 == res){
+                    _this.$Message.error({content:_this.$t('ac_central.msg4'),duration:5});
+                    return false;
+                }else if(1 == res){
+                    _this.$Message.error({content:_this.$t('ac_central.msg6'),duration:5});
+                    return false;
+                }else if(2 == res){
+                    _this.$Message.error({content:"SSID"+_this.$t('ac_central.msg3'),duration:5});
+                    return false;
+                }
+                postVar.ssid = pSsid;
+                postVar.encryption = pSecurityMode;
+                if('1' == pSecurityMode){
+                    var res = cs.string(pSecurity);
+                    if(99 != res || pSecurity.length < 8 || pSecurity.length > 63){
+                        _this.$Message.error({content:_this.$t('ac_central.msg7'),duration:5});
+                        return false;
+                    }
+                    postVar.wlanKey = pSecurity;
+                }else{
+                    postVar.wlanKey = '';
+                }
+
+                if(true == pHidessid){
+                    postVar.hedden = '0';
+                }else{
+                    postVar.hedden = '1';
+                }
+                if(true == pWifi_quarantine){
+                    postVar.noforward = '1';
+                }else{
+                    postVar.noforward = '0';
+                }
+
+                if(99 != cs.num_range(pMaxusernumber,0,64)){
+                    _this.$Message.error({content:_this.$t('ac_central.msg15'),duration:5});
+                    return false;
+                }
+                postVar.maxstanum = pMaxusernumber;
+
+                if(99 != cs.num(pVlanid)){
+                    _this.$Message.error({content:_this.$t('ac_central.msg16'),duration:5});
+                    return false;
+                }
+                if(99 != cs.num_range(pVlanid,0,4094) ){
+                    _this.$Message.error({content:_this.$t('ac_central.msg8'),duration:5});
+                    return false;
+                }
+                postVar.vlanid = pVlanid;
+                postVar.usefor = _this.wlanset;
+				
+				postVar.channel = pChannel;
+				postVar.htbw = pBand_width;
+				postVar.txpower = pTx_power;
+
+                uiPost.setQuickSetting(postVar,function(data){
+                    _this.$Message.success({
+                        content: _this.$t('ac_central.set_success'), onClose: function () {
+                            location.href = location.href;
+                        }
+                    });
+                });
+            },
+            letctlClick: function(){
+                var _this = this;
+                var temp = this.selectData;
+                if (temp.length <= 0) {
+                    this.$Message.error({content:_this.$t('ac_central.msg1'),duration:5});
+                    return false;
+                }
+                this.letctl = true;
+            },
+            letctlOk: function(index){
+                var _this = this;
+                var temp = this.selectData;
+
+                if('2' == index){
+                    _this.ledStatus = true;
+                }else{
+                    _this.ledStatus = false;
+                }
+                var idArr = [];
+                var postVar = {};
+                for(var i in temp){
+                    idArr[i] = temp[i].id;
+                }
+                postVar.id = idArr.join(',');
+                postVar.ledState = String(index);
+                uiPost.setApLedState(postVar,function(data){
+                    _this.letctl = false;
+                    _this.$Message.success({
+                        content: _this.$t('ac_central.set_success'), onClose: function () {
+                            location.href = location.href;
+                        }
+                    });
+                });
+            },
+            rebootClick: function(){
+                var _this = this;
+                var temp = this.selectData;
+                if (temp.length <= 0) {
+                    this.$Message.error(this.$t('ac_central.msg1'));
+                    return false;
+                }
+                var apid = [];
+                var postVar = {};
+                for(var i=0;i<temp.length;i++){
+                    apid[i] = temp[i].id;
+                }
+                postVar.id = apid.join(',');
+                uiPost.setApReboot(postVar,function(data){
+                    if (data.success) {
+                        _this.$Message.success(_this.$t('ac_central.set_success'));
+                        location.href = location.href;  
+                    }else{
+                        _this.$Message.error({content:_this.$t('ac_central.set_fail'),duration:5});
+                    }
+                });
+            },
+            timingRebootClick: function(status){
+                var _this = this;
+                if (status) {
+                    var getSelection = this.$refs.tableSelect.getSelection();
+                    if (getSelection.length>0) {
+                        /*全选*/
+                        var tmpData = [];
+                        var postVar = {};
+                        for(var i=0; i<getSelection.length; i++){
+                            if( ( getSelection[i].apstate!="511" ) & !(getSelection[i].apstate & (1<<8)) ) {
+                                tmpData[i] = getSelection[i].apmac;
+                            }
+                        }
+                        tmpData['apmac'] = tmpData.join(',');
+                        if('' == tmpData['apmac'].length) {
+                            _this.$Message.error({content:_this.$t('ac_central.msg9'),duration:5});
+                            return;
+                        }
+                        postVar.apmac = tmpData['apmac'];
+                        _this.$Spin.show();  //加载动画
+                        uiPost.setApIp(postVar,function (data) {
+                            _this.$Spin.hide();   //关闭加载动画
+                            location.href = location.href;
+                        });
+                    }else{
+                        _this.$Message.error({content:_this.$t('ac_central.msg10'),duration:5});
+                    }
+                }else{
+                    _this.$refs.tableSelect.selectAll(status);
+                }
+            },
+            restoreClick: function(){
+                var _this = this ;
+                var temp = this.selectData;
+                if (temp.length <= 0) {
+                    _this.$Message.error({content:_this.$t('ac_central.msg1'),duration:5});
+                    return false;
+                }
+                var data = [];
+                var postVar = {};
+                for(var i=0;i<temp.length;i++){
+                    data[i] = temp[i].id;
+                }
+                postVar.id = data.join(',');
+                uiPost.setApReset(postVar,function(data){
+                    if (data.success) {
+                        _this.$Message.success(_this.$t('ac_central.set_success'));
+                        location.href = location.href;  
+                    }else{
+                        _this.$Message.error({content:_this.$t('ac_central.set_fail'),duration:5});
+                    }
+                });
+            },
+            uploadClick: function(){
+                var _this = this;
+                uiPost.getFwList(function(data){
+				 var j=0, arr = [];
+				 for(var i=0;i<data.length;i++){
+					 if(data[i].filepath != ""){
+						arr[j] = {};
+						arr[j].id = data[i].id;
+						arr[j].version = data[i].csid+"_"+data[i].filepath.split("_")[7];
+						arr[j].filepath = data[i].filepath;
+						j++;
+					}
+				 }
+				 _this.firmData = arr;
+                });
+                this.uploads = true;
+            },
+            firmwareClick: function(){
+                var _this = this;
+                var temp = this.selectData;
+                if (temp.length <= 0) {
+                    this.$Message.error(this.$t('ac_central.msg1'));
+                    return false;
+                }
+                var csidFlag = false;
+                for(var j=0; j<temp.length; j++){
+                    for(var k=0; k<_this.firmData.length; k++){
+                        var tmp = _this.firmData[k].version.split("_")[0];
+                        if(tmp == temp[j].csid){
+                            csidFlag = true;
+                            break;
+                        }
+                    }
+                }
+                if(csidFlag == false){
+                    this.$Message.error(this.$t('ac_central.fw_error'));
+                    return false; 
+                }
+                this.firmware = true;
+                var data = [];
+                var postVar = {};
+                for(var i=0;i<temp.length;i++){
+                    data[i] = temp[i].id;
+                }
+                postVar.id = data.join(",");
+                uiPost.setApUpgrade(postVar,function(data){
+                    _this.$Message.success(_this.$t('ac_central.set_success'));
+                    location.href = location.href; 
+                    _this.firmware = false;
+                });
+            },
+            formatError: function() {
+                this.$Message.error({content:this.$t('ac_central.msg13',[this.upload.format]),duration: 5});
+            },
+            uploadSuccess:function(){
+                this.$Message.success({content:this.$t('ac_central.upload_success'),onClose:function(){
+                    location.href = location.href;
+                }});
+            },
+            handleBeforeUpload :function(file) {
+                var _this = this;
+                var filename=file.name;
+                var name1 = filename.split("_");
+                var csid = name1[1];
+                var apdata = _this.centralData;
+                if(apdata.length == 0){
+                    this.$Message.error({content:this.$t('ac_central.msg11')});
+                    return false;
+                }
+                var k = 0;
+                for(var i in apdata){
+                    if(apdata[i].csid == csid){
+                        k = 1;
+                        break;
+                    }
+                }
+                if(k == 0){
+                    this.$Message.error({content:this.$t('ac_central.msg11')});
+                    return false;
+                }else {
+                    return true;
+                }
+            },
+			refreshStatusClick: function(){
+                var _this = this;
+                _this.selectData = [];
+				_this.refreshLoading = true;
+                uiPost.getGroupApList(function(data) {
+			        _this.centralData = data;
+                    _this.historyData = data;
+                    //location.href = location.href; 
+					_this.refreshLoading = false;
+                    _this.pageArr();
+				});
+            },
+            pageArr:function(){
+                var _this = this;
+                _this.dataCount = _this.historyData.length;
+                // 初始化显示，小于每页显示条数，全显，大于每页显示条数，取前每页条数显示
+                if(_this.dataCount < _this.pageSize){
+                    _this.centralData = _this.historyData;
+                }else{
+                    _this.centralData = _this.historyData.slice(0,_this.pageSize);
+                }
+            },
+            changepage:function(index){
+                var _this = this;
+                var _start = ( index - 1 ) * _this.pageSize;
+                var _end = index * _this.pageSize;
+                _this.centralData = _this.historyData.slice(_start,_end);
+            },
+            handlePageSize:function(value){
+                var _this = this;
+                _this.pageSize = value;
+                 _this.centralData = _this.historyData;
+                _this.pageArr();
+            },
+            handleSearch:function(){
+                var _this = this;
+                _this.tmpArr = [];
+                _this.centralData = _this.dataArr;
+                for(var i in _this.centralData){
+                    _this.centralData[i].falg = false;
+                    if(_this.currentSelect.toLowerCase() == _this.centralData[i].apmac.toLowerCase()){
+                        _this.centralData[i].falg = true;
+                    }
+                    if(_this.currentSelect == _this.centralData[i].ipaddr){
+                        _this.centralData[i].falg = true;
+                    }
+                    if(_this.centralData[i].falg){
+                        _this.tmpArr.push(_this.centralData[i]);
+                    }
+                }
+                _this.historyData = _this.tmpArr;
+                _this.pageArr();
+            }
+        }
+    };
+</script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title></title>
+  <link rel="stylesheet" href="/plugin/iview/styles/iview.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div id="app"></div>
+
+<script type="text/x-template" id="main">
+<Col class="cs-container" span="20" >
+    <slot name="breadcrumb" :breadcrumb="[$t('menu.client'),$t('menu.pptp_client')]"></slot>
+    <!-- 这个不能删除，用于面包屑显示 -->
+    <div class="cs-content">
+        <Row>
+          <Col :xs="globalConfig.xs" :sm="globalConfig.sm" :md="globalConfig.md" :lg="globalConfig.lg">
+            <Card>
+             <Alert>
+              <!-- <h3>设置</h3> -->
+              {{ $t('wan.pptp') }}
+             </Alert>
+            <Form ref="formValidate" :model="formValidate" :rules="ruleValidate" :label-width="globalConfig.labelWith" label-position="left">
+                <FormItem :label="$t('common.state')">
+                    <i-switch v-model="formValidate.pptpEnable" size="large">
+                        <span slot="open">{{ $t('common.on') }}</span>
+                        <span slot="close">{{ $t('common.off') }}</span>
+                    </i-switch>
+                </FormItem>
+                <Col v-show="formValidate.pptpEnable">
+                <FormItem :label="$t('wan.status')">
+                  <div>
+                    <span>PPTP</span>
+                    <Tag color="blue" v-if="pptpConnect == 1">{{ $t('wan.connected') }}</Tag>
+                    <Tag color="yellow" v-else>{{ $t('wan.disconnected') }}</Tag>
+                  </div>
+                </FormItem>
+                <FormItem :label="$t('wan.server_ip')" prop="pptpServerIp">
+                    <Input v-model="formValidate.pptpServerIp" ></Input>
+                </FormItem>
+                <FormItem :label="$t('wan.user')" prop="pptpUser">
+                    <Input v-model="formValidate.pptpUser" ></Input>
+                </FormItem>
+                <FormItem :label="$t('wan.pass')" prop="pptpPass">
+                    <Input v-model="formValidate.pptpPass" :type="ispass" @on-focus="passtype(1)" @on-blur="passtype(0)"></Input>
+                </FormItem>
+                <FormItem>
+                    <Checkbox v-model="formValidate.pptpMppe">
+                        <span>MPPE</span>
+                    </Checkbox>
+                    <Checkbox v-model="formValidate.pptpMppc">
+                        <span>MPPC</span>
+                    </Checkbox>
+                </FormItem>
+                <FormItem :label="$t('wan.ip')">
+                    <span>{{ pptpClientAddr }}</span>
+                </FormItem>
+              </Col>
+              <FormItem>
+                  <Button type="primary" @click="handleSubmit('formValidate')">{{ $t('common.apply') }}</Button>
+              </FormItem>
+            </Form>
+            </Card>
+        </Col>
+        </Row>
+    </div>
+    <!-- 这个不能删除，用于底部显示 -->
+    <slot name="footer"></slot>
+</Col>
+</script>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/iview/iview.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/layout.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+var cs_main = {
+  template:"#main",
+  data:function(){
+    var _this = this;
+    return {
+      globalConfig:globalConfig,
+      percent:0,
+      formValidate: {
+          pptpEnable:false, 
+          pptpServerIp:'',
+          pptpUser:'',
+          pptpPass:'',
+          pptpMppe:'',
+          pptpMppc:''
+      },
+      ispass:"text",
+      vpnType:'',
+      pptpConnect:'',
+      pptpClientAddr:''
+    }
+  },
+  computed:{
+    ruleValidate: function(){
+        var _this = this;
+        return {
+          pptpUser: [
+            { validator:function(r, v, f) {
+              var _s = cs.string(v);
+              if(0 == _s) {
+                f(_this.$t('wan.msg12'));
+              }else if(1 == _s) {
+                f(_this.$t('wan.msg13'));
+              }else{
+                f();
+              }
+            },trigger: 'blur' }
+          ],
+          pptpPass: [
+            { validator:function(r, v, f) {
+              var _s = cs.string(v);
+              if(0 == _s) {
+                f(_this.$t('wan.msg14'));
+              }else if(1 == _s) {
+                f(_this.$t('wan.msg15'));
+              }else{
+                f();
+              }
+            },trigger: 'blur' }
+          ],
+          pptpServerIp: [
+            { validator:function(r, v, f) {
+              var _s = cs.ip(v);
+              if(0 == _s) {
+                f(_this.$t('wan.server_ip')+_this.$t('wan.msg1'));
+              }else if(1 == _s) {
+                f(_this.$t('wan.server_ip')+_this.$t('wan.msg20'));
+              }else if(2 == _s) {
+                f(_this.$t('wan.server_ip')+_this.$t('wan.msg2'));
+              }else if(3 == _s) {
+                f(_this.$t('wan.server_ip')+_this.$t('wan.msg3'));
+              }else if(4 == _s) {
+                f(_this.$t('wan.server_ip')+_this.$t('wan.msg4'));
+              }else{
+                f();
+              }
+            },trigger: 'blur' }
+          ]
+        }
+    }
+  },
+  created:function() {
+    var _this = this;
+    var postVar = {};
+    this.$Spin.show();
+    postVar.vpnType = "2";//1:l2tp，2：pptp
+    uiPost.getVpnInfo(postVar,function(data) {
+        _this.formValidate.pptpEnable = data.pptpEnable == 1 ? true : false;
+        _this.formValidate.pptpServerIp = data.pptpServer;
+        _this.formValidate.pptpUser = data.pptpUser;
+        _this.formValidate.pptpPass = data.pptpPass;
+        _this.formValidate.pptpMppe = data.pptpMppe == 1 ? true : false;
+        _this.formValidate.pptpMppc = data.pptpMppc == 1 ? true : false;
+        _this.pptpConnect = data.pptpConnect;
+        _this.pptpClientAddr = data.pptpClientAddr;
+        _this.$Spin.hide();
+    });
+      
+  },
+  methods:{
+    handleSubmit: function(name) {
+        var _this = this;
+        this.$refs[name].validate(function(valid){
+            if (valid) {
+                var postVar = {};
+                postVar.vpnType = "2";
+                if(_this.formValidate.pptpEnable){
+                    postVar.pptpEnable = "1";
+                    postVar.pptpServer = _this.formValidate.pptpServerIp;
+                    postVar.pptpUser = _this.formValidate.pptpUser;
+                    postVar.pptpPass = _this.formValidate.pptpPass;
+                    postVar.pptpMppe = _this.formValidate.pptpMppe?"1":"0";
+                    postVar.pptpMppc = _this.formValidate.pptpMppc?"1":"0";
+                }else{
+                    postVar.pptpEnable = "0";
+                }
+                uiPost.setVpnInfo(postVar,function(data) {
+                    var time = 30;
+                    _this.$Modal.success({
+                      loading:true,
+                      render: function(h) {
+                        return h('div',[
+                          _this.$t('common.loading'),
+                          h('Progress',{
+                            attrs:{ percent:_this.percent }
+                          })
+                        ])
+                      },
+                    });
+                    var percentTimer = setInterval(function(){
+                      if (_this.percent>=100) {
+                        clearInterval(percentTimer);
+                        location.href = location.href;
+                      }
+                      _this.percent++;
+                    },cs.getTimer(time));
+                });
+            }
+        })
+    },
+    show:function () {
+        this.$Spin.show();
+    },
+    passtype:function (type) {
+        if(type == 1){
+            this.ispass = 'text';
+        }else{
+            this.ispass = 'password';
+        }
+    }
+  }
+};
+</script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title></title>
+    <link rel="stylesheet" href="/plugin/iview/styles/iview.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div id="app"></div>
+
+<script type="text/x-template" id="main">
+    <Col class="cs-container" span="20" >
+    <slot name="breadcrumb" :breadcrumb="[$t('menu.server'),$t('menu.account')]"></slot>
+    <!-- 这个不能删除，用于面包屑显示 -->
+    <div class="cs-content">
+        <Row>
+            <Col :xs="globalConfig.xs" :sm="globalConfig.sm" :md="globalConfig.md" :lg="globalConfig.lg">
+            <Card>
+                <Alert>
+                    {{ $t('account.help') }}
+                </Alert>
+                <Form ref="formValidate" :model="formValidate" :rules="ruleValidate" :label-width="globalConfig.labelWith" label-position="left">
+                    <FormItem :label="$t('account.auth_type')">
+                        <Select v-model="formValidate.authenticate" :key="$t('account.auth_type')" >
+                            <Option value="0">{{ $t('account.all')}}</Option>
+                            <!-- <Option value="1">PPPOE</Option> -->
+                            <Option value="2">PPTP</Option>
+                            <Option value="3">L2TP</Option>
+                            <Option value="4" v-show="ShowOpenVPN">OpenVPN</Option>
+                        </Select>
+                    </FormItem>
+                    <FormItem :label="$t('account.account')" prop="username">
+                        <Input v-model="formValidate.username" :maxlength="32"></Input>
+                    </FormItem>
+                    <FormItem :label="$t('account.password')" prop="password">
+                        <Input v-model="formValidate.password" :maxlength="32"></Input>
+                    </FormItem>
+                    <Col v-if="formValidate.authenticate ==1" >
+                        <FormItem :label="$t('account.up_bandwidth')" prop="upbandwidth">
+                            <Input v-model="formValidate.upbandwidth"></Input>
+                        </FormItem>
+                        <FormItem :label="$t('account.down_bandwidth')" prop="downbandwidth">
+                            <Input v-model="formValidate.downbandwidth"></Input>
+                        </FormItem>
+                    </Col>
+                    <FormItem :label="$t('account.comment')" prop="comment">
+                        <Input v-model="formValidate.comment" :maxlength="20"></Input>
+                    </FormItem>
+                   <!--  <FormItem :label="$t('account.specifyIp')" prop="ipAddr">
+                       <Input v-model="formValidate.ipAddr"></Input>
+                   </FormItem> -->
+                    <!-- btn -->
+                    <FormItem>
+                        <Button type="primary" @click="handleSubmit('formValidate')" :loading="applyLoading">{{ $t('account.add') }}</Button>
+                    </FormItem>
+                </Form>
+            </Card>
+            <br>
+            </Col>
+        </Row>
+        <Row>
+            <Col>{{ $t('account.currunt_table') }}</Col>
+            <Col class="cs-btn-del">
+                <Poptip
+                    confirm
+                    :title="atonceSelectFalg?$t('account.msg15'):$t('account.msg14')"
+                    @on-popper-show="tableSelectAtonce"
+                    @on-ok="tableSelect(true)"
+                    @on-cancel="cancel">
+                    <Button size="small" type="error">{{ $t('account.delete') }}</Button>
+                </Poptip>
+            </Col>
+            <Col>
+            <Table border ref="tableSelect" :columns="accountListColumns" :data="accountListData" :no-data-text="$t('common.no_data')"></Table>
+            </Col>
+        </Row>
+    </div>
+    <div style="display: none;">
+        <form ref="export" class="form-horizontal" method="post" :action="exportAction">
+        </form>
+    </div>
+    <!-- 这个不能删除，用于底部显示 -->
+    <slot name="footer"></slot>
+    </Col>
+</script>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/iview/iview.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/layout.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+var cs_main = {
+    template:"#main",
+    data:function(){
+        var _this = this;
+        return {
+            globalConfig:globalConfig,
+            applyLoading:false,
+            atonceSelectFalg:false,
+            formValidate: {
+                username:'',
+                password:'',
+                ipAddr:'',
+                authenticate:'2',
+                upbandwidth:'',
+                downbandwidth:'',
+                upband:'',
+                downband:'',
+                comment:''
+            },
+            accountListData:[],
+            authmode:[],
+            exportAction: '/cgi-bin/cstecgi.cgi?action=exportOvpn&username',
+            ShowOpenVPN:false,
+            username:'',
+            openvpnSerStatus:'',
+            showExportBtn:false
+        }
+    },
+    computed:{
+        ruleValidate:function(){
+            var _this = this;
+            return {
+                username: [
+                    { required: true, message: this.$t('account.msg1'), trigger: 'blur' },
+                    { validator:function(r, v, f) {
+                        var ret = cs.string(v);
+                        if (ret == 0) {
+                            f(_this.$t('account.msg1'));
+                        }else if(ret == 1){
+                            f(_this.$t('account.msg2'));
+                        }else{
+                            f();
+                        }
+                    },trigger: 'blur' }
+                ],
+                password: [
+                    { validator:function(r, v, f) {
+                        var ret = cs.string(v);
+                        if (ret == 0) {
+                            f(_this.$t('account.msg3'));
+                        }else if(ret == 1){
+                            f(_this.$t('account.msg4'));
+                        }else{
+                            f();
+                        }
+                    },trigger: 'blur' }
+                ],
+                ipAddr: [
+                    { validator:function(r, v, f) {
+                        if('' != _this.formValidate.ipAddr){
+                            var ret = cs.ip(v);
+                            if (ret == 0 || ret == 1 || ret == 2 || ret == 3 || ret == 4) {
+                                f(_this.$t('account.msg5'));
+                            }
+                            f();
+                        }else{
+                            f();
+                        }
+                    },trigger: 'blur' }
+                ],
+                comment: [
+                    { validator:function(r, v, f) {
+                      var _s = cs.commentstr(v);
+                      if(_s == 1) {
+                        f(_this.$t('account.msg16'));
+                      }
+                      if(_s == 2){
+                        f(_this.$t('account.msg17'));
+                      }
+                       f();
+                    },trigger: 'blur' }
+                ]
+            }
+        },
+        accountListColumns: function() {
+            var _this = this;
+            return [{
+                type: 'selection',
+                key: 'idx',
+                width:'100',
+                sortable: true
+            }, {
+                title: 'ID',
+                key: 'idx',
+                width:'60'
+            }, {
+                title: this.$t('account.account_type'),
+                key: 'authenticate',
+                render:function(h,params){
+                    if(params.row.authenticate == "0"){
+                        return _this.$t('account.all');
+                    }else if(params.row.authenticate == "1"){
+                        return "PPPOE";
+                    }else if(params.row.authenticate == "2"){
+                        return "PPTP";
+                    }else if(params.row.authenticate == "3"){
+                        return "L2TP";
+                    }else if(params.row.authenticate == "4"){
+                        return "OpenVPN";
+                    }
+                }
+            }, {
+                title: this.$t('account.account'),
+                key: 'username'
+            },{
+                title: this.$t('account.password'),
+                key: 'password'
+            },{
+                title: this.$t('account.comment'),
+                key: 'comment'
+            },{
+                title: this.$t('account.operation'),
+                key: 'idx',
+                align: 'center',
+                render: function(h, params) {
+                    var temp = [];
+                    if('4' == params.row.authenticate){
+                        temp.push(
+                            h('Button', {
+                                props: {
+                                    type: 'info',
+                                    size: 'small',
+                                    disabled: !_this.showExportBtn
+                                },
+                                style: {
+                                    marginRight: '5px'
+                                },
+                                on: {
+                                    click:function () {
+                                        _this.$refs.export.action = "/cgi-bin/cstecgi.cgi?action=exportOvpn&username="+params.row.username;
+                                        _this.$refs.export.submit();
+                                    }
+                                }
+                            },_this.$t('account.export_key'))
+                        );
+                    }
+
+                    temp.push(
+                        h('Poptip',{
+                            props: {
+                                confirm: true,
+                                title: _this.$t('account.msg9'),
+                                "ok-text":_this.$t('common.ok'),
+                                "cancel-text":_this.$t('common.cancel')
+                            },
+                            on: {
+                                "on-ok": function(){
+                                    _this.deleteData(params);
+                                }
+                            }
+                        }, [
+                            h('Button', {
+                                props: {
+                                    type: 'error',
+                                    size: 'small'
+                                }
+                            }, _this.$t('account.delete'))
+                        ])
+                    );
+                    return temp;
+                }
+            }];
+        }
+    },
+    created:function() {
+        var _this = this;
+        for(var i in menu){
+            if(menu[i].id == 10){
+                for(var j in menu[i].sub){
+                    if(menu[i].sub[j].id == "10-6"){
+                        if(menu[i].sub[j].display == true){
+                            _this.ShowOpenVPN = true;
+                        }else{
+                            _this.ShowOpenVPN = false;
+                        }
+                    }
+                }
+            }
+        }
+        var tempData = [];
+        uiPost.getVpnUser(function(data) {
+            _this.authmode[i] = [];
+           for(var i=0; i<data.length-1; i++){
+                tempData[i] = data[i];
+                var id=parseInt(i);
+                tempData[i].idx = parseInt(id+1);
+            }
+            console.log(tempData);
+            _this.accountListData = tempData;
+            _this.formValidate.authenticate = "0";
+            _this.formValidate.upbandwidth=data[i].upband;
+            _this.formValidate.downbandwidth=data[i].downband;
+            _this.openvpnSerStatus = data[i].openvpnSerStatus;
+            if(_this.openvpnSerStatus == "0"){
+                _this.showExportBtn = false;
+            }else{
+                _this.showExportBtn = true;
+            }
+        });
+    },
+    methods:{
+        tableSelect:function(status){
+            var _this = this;
+            if (status) {
+                var getSelection = this.$refs.tableSelect.getSelection();
+                console.log(getSelection);
+                if (getSelection.length>0) {
+                    var postVar = {};
+                    var tmp = [];
+                    for(var i=0; i<getSelection.length; i++)
+                    {
+                        tmp[i] = i;  
+                        console.log(getSelection[i]);
+
+                    }
+                    postVar['idx'] = tmp.join(",");
+                    uiPost.deleteVpnUser(postVar,function(){
+                        _this.$Message.success({content:_this.$t('account.msg11'),onClose:function(){
+                            //location.href = location.href;
+                        }});
+                        
+                    });
+                }
+            }else{
+                    this.$refs.tableSelect.selectAll(status);
+                }
+        },
+        cancel:function () {
+        //this.$Message.info('Clicked cancel');
+        },
+        tableSelectAtonce:function(){
+            var _this = this;
+            var getSelection = this.$refs.tableSelect.getSelection();
+            if (getSelection.length>0) {
+                _this.atonceSelectFalg = true;
+            }else{
+                _this.atonceSelectFalg = false;
+            }
+        },
+        deleteData:function (obj) {
+            var _this = this;
+            var postVar = {};
+            postVar.idx = obj.index;
+            uiPost.deleteVpnUser(postVar,function(){
+                _this.accountListData.splice(obj.index, 1);
+            });
+        },
+        handleSubmit: function(name) {
+            var _this = this;
+            _this.applyLoading = true;
+            _this.$refs[name].validate(function(valid){
+                if (valid) {
+                    if (_this.accountListData.length) {
+                        for(var i=0; i<_this.accountListData.length; i++) {
+                            if((_this.formValidate.authenticate == _this.accountListData[i].authenticate 
+                                || _this.accountListData[i].authenticate == '0' 
+                                || _this.formValidate.authenticate == '0') 
+                                && _this.formValidate.username == _this.accountListData[i].username) {
+                                _this.$Message.error(_this.$t('account.msg18'));
+                                _this.applyLoading = false;
+                                return false;
+                            }
+                        }
+                    }
+                    var postVar = {};
+                    postVar.username = _this.formValidate.username;
+                    postVar.password = _this.formValidate.password;
+                    postVar.authenticate = _this.formValidate.authenticate;
+                    postVar.upbandwidth = _this.formValidate.upbandwidth;
+                    postVar.downbandwidth = _this.formValidate.downbandwidth;
+                    postVar.comment = _this.formValidate.comment;
+                    uiPost.setVpnUser(postVar,function(data){
+                        _this.$Message.success({
+                            content: _this.$t('account.success'), onClose: function () {
+                                _this.applyLoading = false;
+                                location.href = location.href;
+                            }
+                        });
+                    });
+                } else{
+                    _this.applyLoading = false;
+                }
+            })
+        }
+    }
+};
+</script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>

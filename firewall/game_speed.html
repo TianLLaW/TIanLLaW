@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title></title>
+    <link rel="stylesheet" href="/plugin/iview/styles/iview.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+      .p-6{border-bottom: 1px solid #e9e9e9;padding-bottom:6px;margin-bottom:6px;}
+  </style>
+</head>
+<body>
+<div id="app"></div>
+
+<script type="text/x-template" id="main">
+<Col class="cs-container" span="20" >
+    <slot name="breadcrumb" :breadcrumb="[$t('menu.qos'),$t('menu.game_speed')]"></slot>
+    <!-- 这个不能删除，用于面包屑显示 -->
+    <div class="cs-content">
+        <Row :gutter="26">
+            <!-- content start -->
+            <Col  :xs="globalConfig.xs" :sm="globalConfig.sm" :md="globalConfig.md" :lg="globalConfig.lg" >
+                 <div class="p-6">
+                    {{ $t('game_speed.total_switch') }}：
+                    <i-switch v-model="enable" size="large" @on-change="gameSpeedStatus">
+                        <span slot="open">{{ $t('common.on') }}</span>
+                        <span slot="close">{{ $t('common.off') }}</span>
+                    </i-switch>
+                </div>
+                <div class="ivu-tabs ivu-tabs-card cs-tabs" v-show="enable == 1">
+                    <div class="ivu-tabs-bar">
+                        <div class="ivu-tabs-nav-container">
+                            <div class="ivu-tabs-nav-wrap" style="position: relative;">
+                                <span class="ivu-tabs-nav-prev ivu-tabs-nav-scroll-disabled"><i class="ivu-icon ivu-icon-chevron-left"></i></span>  <span class="ivu-tabs-nav-next ivu-tabs-nav-scroll-disabled"><i class="ivu-icon ivu-icon-chevron-right"></i></span> 
+                                <div class="ivu-tabs-nav-scroll">
+                                    <div class="nav-text ivu-tabs-nav">
+                                        <div :class="{'ivu-tabs-tab':true,'ivu-tabs-tab-active':i==showCurrentTabs}"
+                                        v-for="(v,i) in tabs" :key="i" :value="i"
+                                        @click="tabsSwitch(i)">
+                                            {{v}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ivu-tabs-content ivu-tabs-content-animated" >
+                        <div class="ivu-tabs-tabpane" v-for="(v,i) in tabs" :key="i" v-show="showCurrentTabs == i">
+                            <div class="p-6">
+                                <Checkbox
+                                  :indeterminate="indeterminate"
+                                  :value="checkAll"
+                                  @click.prevent.native="handleCheckAll">{{ $t('game_speed.checkAll') }}</Checkbox>
+                            </div><br>
+                            <Row>
+                                <CheckboxGroup v-model="checkAllGroup" @on-change="checkAllGroupChange">
+                                    <div v-for="(v,i) in data">
+                                        <Col span="6">
+                                          <Checkbox :key="v.appid" :label="v.appname" v-show="i!=0">{{ v.appname }}</Checkbox>
+                                        </Col>
+                                    </div>
+                                </CheckboxGroup>
+                            </Row>
+                            <div class="p-6"> </div><br>
+                            <Col>
+                                <Button type="primary" @click="handleSubmit" >{{ $t('common.apply') }}</Button>
+                            </Col>
+                        </div>
+                    </div>
+                </div>
+            </Col>
+            <!-- content end -->
+        </Row>
+    </div>
+    <!-- 这个不能删除，用于底部显示 -->
+    <slot name="footer"></slot>
+</Col>
+</script>
+<!-- main end -->
+
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/iview/iview.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/plugin/echarts.min.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/layout.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+// current code
+var cs_main = {
+    template: "#main",
+    data: function() {
+        return {
+            globalConfig: globalConfig,
+            indeterminate: false,
+            enable:false,
+            showCurrentTabs: '',
+            tabs:[],
+            checkAll: false,
+            checkAllGroup: [],
+            data:[],
+            appname:'',
+            typeid:'',
+            appid:'',
+            apptype:'',
+            tmpData:[],
+            config_name:'',
+            datalist:[]
+        }
+    },
+    computed:{
+        lang:function(){
+            console.log('localStorage.lang:'+localStorage.lang);
+            return localStorage.lang;
+        }
+    },
+    created: function() {
+        var _this = this;
+        var postVar = {};
+        postVar.typeid = "2";
+        uiPost.getAppCfg(postVar,function(data) {
+            _this.enable = data.enable == "1" ? true : false;
+            uiPost.getAppTypeList(function(data) {
+				var temporary=0;
+                for (var i in data) {
+                     var typeid = data[i].typeid;
+                     if(typeid=="2"){
+                        _this.tmpData[temporary] = data[i].config_name;
+//                        _this.apptype = localStorage.lang == 'cn' ? data[i].apptype_cn : data[i].apptype_en;
+						if(localStorage.lang == 'cn')
+							 _this.apptype = data[i].apptype_cn;
+						else if(localStorage.lang == 'en')
+							 _this.apptype = data[i].apptype_en;
+						else if(localStorage.lang == 'ct')
+							 _this.apptype = data[i].apptype_ct;
+						else
+							 _this.apptype = data[i].apptype_cn;
+						
+                        _this.tabs.push(_this.apptype);
+                        _this.tabsSwitch(0);
+						temporary++;
+                    }
+                }
+            });
+        });
+    },
+    methods: {
+        gameSpeedStatus:function(){
+            var postVar = {};
+            postVar.typeid = "2";
+            if(true == this.enable){
+                postVar.enable = "1";
+            }else{
+                postVar.enable = "0";
+            }
+            uiPost.setAppCfg(postVar);
+        },
+        tabsSwitch: function(i) {
+            var _this = this;
+            this.showCurrentTabs = i;
+            var postVar = {};
+            postVar.typeid = "2";
+            postVar.config_name =  _this.tmpData[i];
+            uiPost.getAppListById(postVar,function(data) {
+                _this.datalist = [];
+                for(var j in data){
+                    _this.datalist[j] = {};
+//                    _this.datalist[j]['appname'] = localStorage.lang == 'cn' ? data[j].appname_cn : data[j].appname_en;
+					if(localStorage.lang == 'cn')
+						_this.datalist[j]['appname'] = data[j].appname_cn;
+					else if(localStorage.lang == 'en')
+						_this.datalist[j]['appname'] = data[j].appname_en;
+					else if(localStorage.lang == 'ct')
+						_this.datalist[j]['appname'] = data[j].appname_ct;
+					else
+						_this.datalist[j]['appname'] = data[j].appname_cn;
+                    _this.datalist[j]['appid'] = data[j].appid;
+                    _this.datalist[j]['isEnable'] = data[j].isEnable;
+                }
+                _this.data = _this.datalist;
+                for(var k in _this.datalist){
+                    if('1' == _this.datalist[k].isEnable){
+                        _this.checkAllGroup.push(_this.datalist[k]['appname']);
+                    }
+                }
+            });  
+        },
+        handleSubmit: function() {
+            var _this = this;
+            var postVar = {};
+            postVar.app_array = [];
+            for(var i=1,k=0; i<_this.data.length;k++,i++){
+                postVar.app_array[k] = {};
+                if(cs.isInArray(_this.checkAllGroup,_this.data[i].appname)){
+                    postVar.config_name = _this.tmpData[_this.showCurrentTabs];
+                    postVar.app_array[k].appid = this.data[i].appid;
+                    postVar.app_array[k].isEnable = "1";
+                }else{
+                    postVar.config_name = _this.tmpData[_this.showCurrentTabs];
+                    postVar.app_array[k].appid = this.data[i].appid;
+                    postVar.app_array[k].isEnable = "0";
+                }
+            }
+                postVar.typeid = "2";
+            uiPost.setAppById(postVar, function(data) {
+                _this.$Message.success(_this.$t('game_speed.success'));
+                //location.href = location.href;
+            });
+        },
+        handleCheckAll: function() {
+            if (this.indeterminate) {
+                this.checkAll = false;
+            } else {
+                this.checkAll = !this.checkAll;
+            }
+            this.indeterminate = false;
+
+            if (this.checkAll) {
+                this.checkAllGroup = [];
+                for(var x in this.data){
+                    this.checkAllGroup.push(this.data[x].appname);
+                }
+            } else {
+                this.checkAllGroup = [];
+            }
+        },
+        checkAllGroupChange: function(data) {
+            if (data.length === this.data.length) {
+                this.indeterminate = false;
+                this.checkAll = true;
+            } else if (data.length > 0) {
+                this.indeterminate = true;
+                this.checkAll = false;
+            } else {
+                this.indeterminate = false;
+                this.checkAll = false;
+            }
+        }
+    }
+};
+</script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>

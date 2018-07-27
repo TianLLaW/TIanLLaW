@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title></title>
+  <link rel="stylesheet" href="/plugin/iview/styles/iview.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    .textarea{
+      height: 220px;
+      min-height: 220px;
+    }
+  </style>
+</head>
+<body>
+<div id="app"></div>
+
+<script type="text/x-template" id="main">
+<div class="main">
+<Form ref="formDynamic" :model="formDynamic" :label-width="100">
+    <FormItem>
+      <Row>
+        <Col span="11">
+         <h1>TEST</h1>
+        </Col>
+      </Row>
+    </FormItem>
+    <FormItem>
+      <Row>
+        <Col span="11">
+          <Input type="text" v-model="topicurl">
+            <span slot="prepend">topicurl</span>
+          </Input>
+        </Col>
+      </Row>
+    </FormItem>
+    <FormItem
+            v-for="(item, index) in formDynamic.items"
+            v-if="item.status"
+            :key="index">
+        <Row>
+            <Col span="5">
+                <Input type="text" v-model="item.key">
+                  <span slot="prepend">name</span>
+                </Input>
+            </Col>
+            <Col span="5" offset="1">
+                <Input type="text" v-model="item.value">
+                  <span slot="prepend">value</span>
+                </Input>
+            </Col>
+            <Col span="4" offset="1">
+                <Button type="ghost" @click="handleRemove(index)">Delete</Button>
+            </Col>
+        </Row>
+    </FormItem>
+    <FormItem>
+        <Row>
+            <Col span="11">
+                <Button type="dashed" long @click="handleAdd" icon="plus-round">Add</Button>
+            </Col>
+        </Row>
+    </FormItem>
+    <FormItem>
+        <Button type="primary" @click="handleSubmit('formDynamic')" :loading="loading">Submit | GET </Button>
+    </FormItem>
+    <FormItem>
+      <Row>
+          <Col span="11">
+            <textarea class="ivu-input textarea" >{{ desc }}</textarea>
+          </Col>
+      </Row>
+    </FormItem>
+</Form>
+</div>
+</script>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/iview/iview.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/layout.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+var cs_main = {
+  template:"#main",
+  data:function(){
+    var _this = this;
+    return {
+      globalConfig:globalConfig,
+      index: 1,
+      topicurl:"",
+      desc:'',
+      loading:false,
+      formDynamic: {
+          items: [
+              {
+                  key: '',
+                  value: '',
+                  index: 1,
+                  status: 1
+              }
+          ]
+      }
+    }
+  },
+  computed: {
+  },
+  created:function() {
+    globalConfig.showWechatQR = false;
+    globalConfig.showLanguage = false;
+    globalConfig.showHelp = false;
+    globalConfig.showMenu = false;
+    globalConfig.showSearch = false;
+    var _this = this;
+
+  },
+  methods:{
+    handleSubmit (name) {
+      var _this = this;
+      var postVar = {'topicurl':this.topicurl};
+      for (var i = 0; i < this.formDynamic.items.length; i++) {
+        postVar[this.formDynamic.items[i].key] = this.formDynamic.items[i].value;
+      }
+      this.loading = true;
+      var postVar = JSON.stringify(postVar);
+      $.ajax({
+        url: this.globalConfig.cgiUrl,
+        type: 'POST',
+        data: postVar,
+        success:function(data){
+          _this.desc = data;
+          _this.loading = false;
+        }
+      })
+    },
+    handleReset (name) {
+        this.$refs[name].resetFields();
+    },
+    handleAdd () {
+        this.index++;
+        this.formDynamic.items.push({
+            value: '',
+            index: this.index,
+            status: 1
+        });
+    },
+    handleRemove (index) {
+        this.formDynamic.items[index].status = 0;
+    }
+  }
+};
+</script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>

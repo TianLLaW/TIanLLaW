@@ -1,0 +1,16 @@
+{
+    "enabled": "1",
+    "connStatus":  "disconnected",
+    "connMode":   "2",
+    "wanIp":   "2001:546e:90bc:0:ba55:10ff:fe24:77bd",
+    "wanIpPrefixLen":   "64",
+    "wanGw": "fe80::ba55:10ff:fe24:7854",
+    "autoDns": "0", 
+    "wanPriDns":   "2001:913::8",
+    "wanSecDns":   "2001:913:800::12",
+    "lanMode":   "0",
+    "lanLinkIp":   "fe80::ba55:10ff:fe24:77bc",
+    "lanLinkPrefixLen":   "64",
+    "lanGlobalIp":   "2001:388:c066:1:ba55:10ff:fe24:77bc",
+    "lanGlobalPrefixLen":   "64"
+}

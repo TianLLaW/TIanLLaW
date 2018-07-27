@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title></title>
+    <link rel="stylesheet" href="/plugin/iview/styles/iview.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div id="app"></div>
+
+<script type="text/x-template" id="main">
+    <Col class="cs-container" span="20" >
+    <slot name="breadcrumb" :breadcrumb="[$t('menu.qos'),$t('menu.qos_iplimit')]"></slot>
+    <!-- 这个不能删除，用于面包屑显示 -->
+    <div class="cs-content">
+        <row>
+            <Col :xs="globalConfig.xs" :sm="globalConfig.sm" :md="globalConfig.md" :lg="globalConfig.lg">
+            <Card>
+                <!--<Alert>
+                    {{ $t('qos.help') }}
+                </Alert>-->
+                <Form ref="formValidate" :model="formValidate" :rules="ruleValidate" :label-width="globalConfig.labelWith" label-position="left">
+                    <FormItem :label="$t('qos.state')">
+                        <i-switch v-model="formValidate.status" size="large" @on-change="submitStatus">
+                            <span slot="open">{{ $t('common.enabled') }}</span>
+                            <span slot="close">{{ $t('common.disabled') }}</span>
+                        </i-switch>
+                    </FormItem>
+                    <Col v-show="formValidate.status" >
+                    {{ $t ('qos.add_rule') }}
+                    <hr>
+                    <br>
+                    <FormItem :label="$t('qos.ipStart')" prop="ipStart">
+                        <Input v-model="formValidate.ipStart" ></Input>
+                    </FormItem>
+                    <FormItem :label="$t('qos.ipEnd')" prop="ipEnd">
+                        <Input v-model="formValidate.ipEnd" ></Input>
+                    </FormItem>
+                    <FormItem :label="$t('qos.upBandwidth')" prop="upBandwidth">
+                        <Input v-model="formValidate.upBandwidth" :maxlength="6">
+                        <span slot="append"> (Mbps) </span>
+                        </Input>
+                    </FormItem>
+                    <FormItem :label="$t('qos.dwBandwidth')" prop="dwBandwidth">
+                        <Input v-model="formValidate.dwBandwidth" :maxlength="6">
+                        <span slot="append"> (Mbps) </span>
+                        </Input>
+                    </FormItem>
+
+                    <FormItem :label="$t('qos.comment')" prop="comment">
+                        <Input v-model="formValidate.comment" :maxlength="20"></Input>
+                    </FormItem>
+                    <!-- btn -->
+                    <FormItem>
+                        <Tooltip :content="$t('qos.qos_table')" :always="qosData.length >= 10" :disabled="qosData.length < 10" >
+                            <Button type="primary" :loading="addIpfLoading" @click="handleSubmit('formValidate')" :disabled="qosData.length >= 10">{{ $t('qos.add') }}</Button>
+                        </Tooltip>
+                    </FormItem>
+                    </Col>
+                </Form>
+            </Card>
+            <br>
+            </Col>
+        </row>
+        <Row v-show="formValidate.status">
+            <Col>{{ $t('qos.qos_table') }}</Col>
+            <Col class="cs-btn-del">
+            <Button size="small" @click="tableSelect(true)" type="error">{{ $t('qos.delete') }}</Button>
+            </Col>
+            <Col v-show="formValidate.status" >
+            <Table border ref="tableSelect" :columns="qosfColumns" :data="qosData"></Table>
+            </Col>
+        </Row>
+    </div>
+    <Modal
+            v-model="showModel"
+            :title="$t('qos.modal_title')"
+            @on-ok="ok"
+            @on-cancel="cancel"
+            :ok-text="$t('common.ok')"
+            :cancel-text="$t('common.cancel')">
+        <Table highlight-row :loading="arpLoading" :columns="arpColumns" :data="arpData" @on-current-change="selectTable"></Table>
+    </Modal>
+    <!-- 这个不能删除，用于底部显示 -->
+    <slot name="footer"></slot>
+    </Col>
+</script>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/iview/iview.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/layout.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+    var cs_main = {
+        template:"#main",
+        data:function(){
+            return {
+                globalConfig:globalConfig,
+                arpLoading:true,
+                addIpfLoading:false,
+                formValidate: {
+                    status:false,
+                    ipStart:'',
+                    ipEnd:'',
+                    upBandwidth:'',
+                    dwBandwidth:'',
+                    comment:''
+                },
+                ip:'',
+                lanIp: '',
+                lanNetmask: '',
+                showModel:false,
+                arpColumns: [
+                    {
+                        title: '#',
+                        key: 'idx',
+                        sortable:true
+                    },
+                    {
+                        title: 'IP',
+                        key: 'ip',
+                        sortable:true
+                    },
+                    {
+                        title: 'MAC',
+                        key: 'mac',
+                        sortable:true
+                    }
+                ],
+                arpData: [],
+                qosData: []
+            }
+        },
+        computed:{
+            ruleValidate: function(){
+                var _this = this;
+                return{
+                    ipStart: [
+                        { validator:function(r, v, f) {
+                            var ret = cs.ip(v);
+                            if (ret == 0 || ret == 1 || ret == 2 || ret == 3 || ret == 4) {
+                                f(_this.$t('qos.msg7'));
+                            }
+                            if (v == _this.lanIp){
+                                f(_this.$t('qos.msg10'));
+                            }
+                            if (0 == cs.ip_subnet(v,_this.lanNetmask,_this.lanIp)){
+                                f(_this.$t('qos.msg9'));
+                            }
+                            for (var i=0;i<_this.qosData.length;i++){
+                                var ip = parseInt(v.split(".")[3]);
+                                var ips = parseInt(_this.qosData[i].ipStart.split(".")[3]);
+                                var ipe = parseInt(_this.qosData[i].ipEnd.split(".")[3]);
+								if (ip == ips || ip == ipe){
+                                    f(_this.$t('qos.msg35'));
+                                }
+                                if (ip > ips && ip < ipe){
+                                    f(_this.$t('qos.msg35'));
+                                }
+                            }
+                            f();
+                        },trigger: 'blur' }
+                    ],
+                    ipEnd: [
+                        { validator:function(r, v, f) {
+                            var ret = cs.ip(v);
+                            if (ret == 0 || ret == 1 || ret == 2 || ret == 3 || ret == 4) {
+                                f(_this.$t('qos.msg7'));
+                            }
+                            if (v == _this.lanIp){
+                                f(_this.$t('qos.msg10'));
+                            }
+                            if (0 == cs.ip_subnet(v,_this.lanNetmask,_this.lanIp)){
+                                f(_this.$t('qos.msg9'));
+                            }
+                            for (var i=0;i<_this.qosData.length;i++){
+								var ip1 = parseInt(_this.formValidate.ipStart.split(".")[3]);
+                                var ip2 = parseInt(_this.formValidate.ipEnd.split(".")[3]);
+                                var ips = parseInt(_this.qosData[i].ipStart.split(".")[3]);
+                                var ipe = parseInt(_this.qosData[i].ipEnd.split(".")[3]);
+								if (ip1 == ips || ip1 == ipe || ip2 == ips || ip2 == ipe){
+                                    f(_this.$t('qos.msg35'));
+                                }
+								if (ip1 < ips && ip2 > ips){
+                                    f(_this.$t('qos.msg35'));
+                                }								
+                                if (ip1 > ips && ip1 < ipe){
+                                    f(_this.$t('qos.msg35'));
+                                }
+                                if(ip2 < ip1){
+                                    f(_this.$t('qos.msg36'));
+                                }
+                            }
+                            f();
+                        },trigger: 'blur' }
+                    ],
+                    upBandwidth:[
+                        { required: true, message: this.$t('qos.msg1'), trigger: 'blur' },
+                        { validator:function(r, v, f) {
+                            var ret = cs.num_range(v,1,100);
+                            if (1 == ret) {
+                                f(_this.$t('qos.msg3'));
+                            } else if (2 == ret) {
+                                f(_this.$t('qos.msg5')+'(1-100)');
+                            }else{
+                                f();
+                            }
+                        },trigger: 'blur' }
+                    ],
+                    dwBandwidth:[
+                        { validator:function(r, v, f) {
+                             var ret = cs.num_range(v,1,100);
+                            if (0 == ret) {
+                                f(_this.$t('qos.msg2'));
+                            } else if (1 == ret) {
+                                f(_this.$t('qos.msg4'));
+                            } else if (2 == ret) {
+                                f(_this.$t('qos.msg6')+'(1-100)');
+                            }else{
+                                f();
+                            }
+                        },trigger: 'blur' }
+                    ],
+                    comment: [
+                        { validator:function(r, v, f) {
+                            var _s = cs.commentstr(v);
+                            if(_s == 1) {
+                                f(_this.$t('ipf.msg9'));
+                            }
+                            if(_s == 2){
+                                f(_this.$t('qos.msg28'));
+                            }
+                            f();
+                        },trigger: 'blur' }
+                    ]
+                }
+            },
+            qosfColumns: function() {
+                var _this = this;
+                return [{
+                    type: 'selection',
+                    key: 'idx',
+                    width: '100',
+                    sortable: true
+                }, {
+                    title: 'ID',
+                    key: 'idx',
+                    render:function(h,params){
+                        return parseInt(params.row.idx) + 1;
+                    },
+                    sortable: true
+                }, {
+                    title: this.$t('qos.ip'),
+                    key: 'ipStart',
+                    render:function(h,params){
+                        return params.row.ipStart + '-' + params.row.ipEnd;
+                    },
+                    sortable: true
+                }, {
+                    title: this.$t('qos.upBandwidth'),
+                    key: 'upBandwidth',
+                    sortable: true
+                }, {
+                    title: this.$t('qos.dwBandwidth'),
+                    key: 'dwBandwidth',
+                    sortable: true
+                }, {
+                    title: this.$t('qos.comment'),
+                    key: 'comment',
+                    sortable: true
+                }];
+            }
+        },
+        created:function(){
+            var _this = this;
+            uiPost.getIpQosLimit(function(data) {
+                _this.formValidate.status = data[0].enable == 1 ?true :false;
+                _this.lanIp = data[0].lanIp;
+                _this.lanNetmask = data[0].lanNetmask;
+                if (data[0].lanIp) {
+                    var temp = data[0].lanIp.split('.');
+                    _this.formValidate.ipStart = temp[0]+'.'+temp[1]+'.'+temp[2]+'.';
+					_this.formValidate.ipEnd = temp[0]+'.'+temp[1]+'.'+temp[2]+'.';
+                }
+                var rule_num = data.length;
+                if (rule_num >= 2){
+                    _this.qosData = data.slice(1);
+                }
+            })
+        },
+        methods:{
+            handleSubmit: function(name) {
+                var _this = this;
+                _this.addIpfLoading = true;
+                _this.$refs[name].validate(function(valid){
+                    if (valid) {
+                        var postVar = {};
+                        postVar.ipStart = _this.formValidate.ipStart;
+                        postVar.ipEnd = _this.formValidate.ipEnd;
+                        postVar.upBandwidth = _this.formValidate.upBandwidth;
+                        postVar.dwBandwidth = _this.formValidate.dwBandwidth;
+                        postVar.comment = _this.formValidate.comment;
+                        postVar.addEffect = "0";
+                        uiPost.setIpQosLimit(postVar,function(data){
+                            _this.addIpfLoading = false;
+                            location.href = location.href;
+                        });
+                    }else{
+                        _this.addIpfLoading = false;
+                    }
+                });
+                for (var i=0;i<_this.qosData.length;i++){
+                    var ip = v.split(".")[3];
+                    var ips = _this.qosData[i].ipStart.split(".")[3];
+                    var ipe = _this.qosData[i].ipEnd.split(".")[3];
+                    if(ip >= ips && ip <= ipe){
+                        f(_this.$t('qos.msg35'));
+                    }
+                }
+            },
+            showClientList:function(){
+                var _this = this;
+                _this.showModel = true;
+                uiPost.getArpTable(function(data){
+                    _this.arpData = data.slice(1);
+                    _this.arpLoading = false;
+                });
+            },
+            ok:function () {
+                this.formValidate.ip = this.ip;
+                //this.$Message.info('Clicked ok');
+            },
+            cancel:function () {
+                //this.$Message.info('Clicked cancel');
+            },
+            submitStatus:function(){
+                var postVar = {};
+                if(true == this.formValidate.status){
+                    postVar.enable = "1";
+                }else{
+                    postVar.enable = "0";
+                }
+                postVar.addEffect = "1";
+                uiPost.setIpQosLimit(postVar);
+            },
+            selectTable:function (obj) {
+                this.ip = obj.ip;
+            },
+            deleteData:function (obj) {
+                var _this = this;
+                var postVar = {};
+                postVar[obj.row.delRuleName] = obj.index;
+                uiPost.delIpQosLimit(postVar,function(){
+                    _this.qosData.splice(obj.index, 1);
+                });
+            },
+            tableSelect:function(status){
+                var _this = this;
+                if (status) {
+                    var getSelection = this.$refs.tableSelect.getSelection();
+                    if (getSelection.length>0) {
+                        var postVar = {};
+                        for(var i=0; i<getSelection.length; i++)
+                        {
+                            postVar[getSelection[i].delRuleName] = i;
+                        }
+                        uiPost.delIpQosLimit(postVar,function(){
+                            _this.$Message.success({content:_this.$t('qos.msg27'),onClose:function(){
+                                    location.href = location.href;
+                                }
+                            });
+                        });
+                    }else{
+                        this.$Message.error(this.$t('qos.msg25'));
+                    }
+                }else{
+                    this.$refs.tableSelect.selectAll(status);
+                }
+            }
+        }
+    };
+</script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>

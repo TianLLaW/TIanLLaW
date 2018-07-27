@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title></title>
+  <link rel="stylesheet" href="/plugin/iview/styles/iview.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div id="app"></div>
+
+<script type="text/x-template" id="main">
+<Col class="cs-container" span="20" >
+    <slot name="breadcrumb" :breadcrumb="[$t('menu.client'),$t('menu.l2tp_client')]"></slot>
+    <!-- 这个不能删除，用于面包屑显示 -->
+    <div class="cs-content">
+        <Row>
+          <Col :xs="globalConfig.xs" :sm="globalConfig.sm" :md="globalConfig.md" :lg="globalConfig.lg">
+            <Card>
+             <Alert>
+              <!-- <h3>设置</h3> -->
+              {{ $t('wan.l2tp') }}
+             </Alert>
+            <Form ref="formValidate" :model="formValidate" :rules="ruleValidate" :label-width="globalConfig.labelWith" label-position="left">
+                <FormItem :label="$t('common.state')">
+                    <i-switch v-model="formValidate.l2tpEnable" size="large">
+                        <span slot="open">{{ $t('common.on') }}</span>
+                        <span slot="close">{{ $t('common.off') }}</span>
+                    </i-switch>
+                </FormItem>
+                <Col v-show="formValidate.l2tpEnable">
+                <FormItem :label="$t('wan.status')">
+                  <div>
+                    <span>L2TP</span>
+                    <Tag color="blue" v-if="l2tpConnect == 1">{{ $t('wan.connected') }}</Tag>
+                    <Tag color="yellow" v-else>{{ $t('wan.disconnected') }}</Tag>
+                  </div>
+                </FormItem>
+                <FormItem :label="$t('wan.server_ip')" prop="l2tpServerIp">
+                  <Input v-model="formValidate.l2tpServerIp" ></Input>
+                </FormItem>
+                <FormItem :label="$t('wan.user')" prop="l2tpUser">
+                  <Input v-model="formValidate.l2tpUser" ></Input>
+                </FormItem>
+                <FormItem :label="$t('wan.pass')" prop="l2tpPass">
+                  <Input v-model="formValidate.l2tpPass" :type="ispass" @on-focus="passtype(1)" @on-blur="passtype(0)"></Input>
+                </FormItem>
+                <FormItem :label="$t('wan.ip')">
+                    <span>{{ l2tpClientAddr }}</span>
+                </FormItem>
+                </Col>
+                <FormItem>
+                  <Button type="primary" @click="handleSubmit('formValidate')">{{ $t('common.apply') }}</Button>
+                </FormItem>
+            </Form>
+            </Card>
+        </Col>
+        </Row>
+    </div>
+    <!-- 这个不能删除，用于底部显示 -->
+    <slot name="footer"></slot>
+</Col>
+</script>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/iview/iview.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/layout.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+var cs_main = {
+  template:"#main",
+  data:function(){
+    var _this = this;
+    return {
+      globalConfig:globalConfig,
+      percent:0,
+      formValidate: {
+          l2tpEnable:false,
+          l2tpServerIp:'',
+          l2tpUser:'',
+          l2tpPass:''
+      },
+      ispass:"text",
+      vpnType:'',
+      l2tpConnect:'',
+      l2tpClientAddr:''
+    }
+  },
+  computed:{
+    ruleValidate: function(){
+        var _this = this;
+        return {
+          l2tpUser: [
+            { validator:function(r, v, f) {
+              var _s = cs.string(v);
+              if(0 == _s) {
+                f(_this.$t('wan.msg12'));
+              }else if(1 == _s) {
+                f(_this.$t('wan.msg13'));
+              }else{
+                f();
+              }
+            },trigger: 'blur' }
+          ],
+          l2tpPass: [
+            { validator:function(r, v, f) {
+              var _s = cs.string(v);
+              if(0 == _s) {
+                f(_this.$t('wan.msg14'));
+              }else if(1 == _s) {
+                f(_this.$t('wan.msg15'));
+              }else{
+                f();
+              }
+            },trigger: 'blur' }
+          ],
+          l2tpServerIp: [
+            { validator:function(r, v, f) {
+              var _s = cs.ip(v);
+              if(0 == _s) {
+                f(_this.$t('wan.server_ip')+_this.$t('wan.msg1'));
+              }else if(1 == _s) {
+                f(_this.$t('wan.server_ip')+_this.$t('wan.msg20'));
+              }else if(2 == _s) {
+                f(_this.$t('wan.server_ip')+_this.$t('wan.msg2'));
+              }else if(3 == _s) {
+                f(_this.$t('wan.server_ip')+_this.$t('wan.msg3'));
+              }else if(4 == _s) {
+                f(_this.$t('wan.server_ip')+_this.$t('wan.msg4'));
+              }else{
+                f();
+              }
+            },trigger: 'blur' }
+          ]
+        }
+    }
+  },
+  created:function() {
+    var _this = this;
+    var postVar = {};
+    this.$Spin.show();
+    postVar.vpnType = "1";//1:l2tp，2：pptp
+    uiPost.getVpnInfo(postVar,function(data) {
+        _this.formValidate.l2tpEnable = data.l2tpEnable == 1 ? true : false;
+        _this.formValidate.l2tpServerIp = data.l2tpServer;
+        _this.formValidate.l2tpUser = data.l2tpUser;
+        _this.formValidate.l2tpPass = data.l2tpPass;
+        _this.l2tpConnect = data.l2tpConnect;
+        _this.l2tpClientAddr = data.l2tpClientAddr;
+        _this.$Spin.hide();
+    });
+      
+  },
+  methods:{
+    handleSubmit: function(name) {
+        var _this = this;
+        this.$refs[name].validate(function(valid){
+            if (valid) {
+                var postVar = {};
+                postVar.vpnType = "1";
+                if(_this.formValidate.l2tpEnable){
+                    postVar.l2tpEnable = "1";
+                    postVar.l2tpServer = _this.formValidate.l2tpServerIp;
+                    postVar.l2tpUser = _this.formValidate.l2tpUser;
+                    postVar.l2tpPass = _this.formValidate.l2tpPass;
+                }else{
+                    postVar.l2tpEnable = "0";
+                }
+                uiPost.setVpnInfo(postVar,function(data) {
+                  var time = 30;
+                  _this.$Modal.success({
+                    loading:true,
+                    render: function(h) {
+                      return h('div',[
+                        _this.$t('common.loading'),
+                        h('Progress',{
+                          attrs:{ percent:_this.percent }
+                        })
+                      ])
+                    },
+                  });
+                  var percentTimer = setInterval(function(){
+                    if (_this.percent>=100) {
+                      clearInterval(percentTimer);
+                      location.href = location.href;
+                    }
+                    _this.percent++;
+                  },cs.getTimer(time));
+                });
+            }
+        })
+    },
+    show:function () {
+        this.$Spin.show();
+    },
+    passtype:function (type) {
+        if(type == 1){
+            this.ispass = 'text';
+        }else{
+            this.ispass = 'password';
+        }
+    }
+  }
+};
+</script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>

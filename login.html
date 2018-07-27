@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title></title>
+  <link rel="stylesheet" href="/plugin/iview/styles/iview.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    .main{
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+<div id="app"></div>
+
+<script type="text/x-template" id="main">
+<div class="main" style="padding:200px 0;" @keyup.enter="handleSubmit('formInline')">
+  <Row>
+      <Col :xs="24" :sm="{span:6,offset:9}">
+        <h1>{{ $t("login.title") }}</h1>
+        <p>{{ $t("login.help",[local_href]) }}</p>
+        <p>&nbsp;</p>
+        <Form ref="formInline" :model="formInline" :rules="ruleInline" method="POST" action="/cgi-bin/cstecgi.cgi?action=login">
+            <FormItem prop="username" v-show="false">
+                <Input type="text" v-model="formInline.username" name="username" >
+                    <span slot="prepend"> {{ $t("login.user") }} </span>
+                </Input>
+            </FormItem>
+            <FormItem prop="password">
+                <Input type="password" v-model="formInline.password" name="password" :maxlength="32">
+                    <span slot="prepend"> {{ $t("login.pass") }} </span>
+                </Input>
+            </FormItem>
+            <FormItem>
+                <Button long type="primary" @click="handleSubmit('formInline')">{{ $t("login.login_btn") }}</Button>
+            </FormItem>
+        </Form>
+      </Col>
+  </Row>
+  <div style="position: fixed;bottom: 0;width: 100%;">
+    <slot name="footer"></slot>
+  </div>
+</div>
+</script>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/iview/iview.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/layout.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+var cs_main = {
+  template:"#main",
+  data:function(){
+    var _this = this;
+    return {
+      globalConfig:globalConfig,
+      version:"v0.0.1bate",
+      formInline: {
+          username:'admin',
+          password: ''
+      },
+      loginUser:'',
+      loginPass:'',
+      ruleInline: {
+          username: [
+            { validator:function(r, v, f) {
+                if(!v){
+                  f(_this.$t('login.user')+_this.$t('login.err_empty'));
+                }
+                if(v != _this.loginUser){
+                  f(_this.$t('login.user')+_this.$t('login.err_wrong'));
+                }
+                f();
+            },trigger: 'blur' }
+          ],
+          password: [
+            { validator:function(r, v, f) {
+                if(!v){
+                  f(_this.$t('login.pass')+_this.$t('login.err_empty'));
+                }
+                if(v != _this.loginPass){
+                  f(_this.$t('login.pass')+_this.$t('login.err_wrong'));
+                }
+                f();
+            },trigger: 'blur' }
+          ]
+      }
+    }
+  },
+  computed: {
+    local_href:function() {
+        return location.host;
+    }
+  },
+  created:function() {
+    globalConfig.showMenu = false;
+    globalConfig.showSearch = false;
+    var _this = this;
+    uiPost.getLoginCfg(function(data) {
+        _this.loginUser = data.loginUser;
+        _this.loginPass = data.loginPass;
+    });
+  },
+  methods:{
+     handleSubmit:function(name) {
+        var _this = this;
+        this.$refs[name].validate(function(valid){
+            if (valid) {
+              _this.$refs.formInline.$el.submit();
+            }
+        })
+      }
+  }
+};
+</script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title></title>
+  <link rel="stylesheet" href="/plugin/iview/styles/iview.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div id="app"></div>
+
+<script type="text/x-template" id="main">
+<Col class="cs-container" span="20" >
+    <slot name="breadcrumb"></slot>
+    <!-- 这个不能删除，用于面包屑显示 -->
+    <div class="cs-content">
+        <row>
+          <Col :xs="globalConfig.xs" :sm="globalConfig.sm" :md="globalConfig.md" :lg="globalConfig.lg">
+            <Card>
+             <Alert>
+              <!-- <h3>设置</h3> -->
+              {{ $t('static_dhcp.help') }}
+             </Alert>
+            <Form ref="formValidate" :model="formValidate" :rules="ruleValidate" :label-width="globalConfig.labelWith" label-position="left">
+                <FormItem :label="$t('static_dhcp.state')">
+                    <i-switch v-model="formValidate.status" size="large" @on-change="submitStatus">
+                        <span slot="open">{{ $t('common.enabled') }}</span>
+                        <span slot="close">{{ $t('common.disabled') }}</span>
+                    </i-switch>
+                </FormItem>
+                <Col v-show="formValidate.status" >
+                {{ $t('static_dhcp.add_rule') }}
+                <hr>
+                <br>
+                <FormItem :label="$t('static_dhcp.ip')" prop="staticIp">
+                    <Input v-model="formValidate.staticIp4" >
+                        <span slot="prepend">{{ formValidate.staticIp1 }}</span>
+                    </Input>
+                </FormItem>
+                <FormItem :label="$t('static_dhcp.mac')" prop="staticMac">
+                    <Row>
+                        <Col span="19"><Input v-model="formValidate.staticMac" ></Input></Col>
+                        <Col span="4" offset="1"><Button long @click="showClientList">{{ $t('static_dhcp.scan') }}</Button></Col>
+                    </Row>
+                </FormItem>
+                <!-- btn -->
+                <FormItem>
+                      <Button type="primary" @click="handleSubmit('formValidate')" :loading="applyLoading">{{ $t('common.apply') }}</Button>
+                </FormItem>
+                </Col>
+            </Form>
+            </Card>
+            <br>
+        </Col>
+        </row>
+        <Row v-show="formValidate.status" >
+            <Col>{{ $t('static_dhcp.static_dhcp_table') }}</Col>
+            <Col class="cs-btn-del">
+                <Poptip
+                    confirm
+                    :title="atonceSelectFalg?$t('macf.msg9'):$t('static_dhcp.msg8')"
+                    @on-popper-show="tableSelectAtonce"
+                    @on-ok="tableSelect(true)"
+                    @on-cancel="cancel">
+                    <Button size="small" type="error">{{ $t('macf.delete') }}</Button>
+                </Poptip>
+                <!-- <Button size="small" @click="tableSelect(true)" type="error">{{ $t('static_dhcp.delete') }}</Button> -->
+            </Col>
+            <Col>
+            <Table border ref="tableSelect" :columns="staticDhcpColumns" :data="staticDhcpData"></Table>
+            </Col>
+        </Row>
+    </div>
+    <Modal
+        v-model="showModel"
+        :title="$t('static_dhcp.modal_title')"
+        @on-ok="ok"
+        @on-cancel="cancel"
+        :ok-text="$t('common.ok')"
+        :cancel-text="$t('common.cancel')">
+        <Table highlight-row :loading="arpLoading" :columns="arpColumns" :data="arpData" @on-current-change="selectTable"></Table>
+    </Modal>
+    <!-- 这个不能删除，用于底部显示 -->
+    <slot name="footer"></slot>
+</Col>
+</script>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/iview/iview.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/layout.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+var cs_main = {
+  template:"#main",
+  data:function(){
+    return {
+      globalConfig:globalConfig,
+      applyLoading:false,
+      arpLoading:true,
+      atonceSelectFalg:false,
+      formValidate: {
+          status:false,
+          staticIp:'',
+          staticIp1:'',
+          staticIp4:'',
+          staticMac:'',
+      },
+      ip:'',
+      mac:'',
+      lanIp: '',
+      lanNetmask: '',
+      showModel:false,
+        arpColumns: [
+            {
+                title: '#',
+                key: 'idx',
+                sortable:true
+            },
+            {
+                title: 'IP',
+                key: 'ip',
+                sortable:true
+            },
+            {
+                title: 'MAC',
+                key: 'mac',
+                sortable:true
+            }
+        ],
+        arpData: [],
+        staticDhcpData: [],
+        percent:0
+    }
+  },
+  watch:{
+    'formValidate.staticIp4':function(){
+        this.formValidate.staticIp = this.formValidate.staticIp1 + this.formValidate.staticIp4;
+    },
+  },
+  computed:{
+    ruleValidate:function(){
+        var _this = this;
+        return {
+          staticIp: [
+              { required: true, message: this.$t('static_dhcp.msg1'), trigger: 'blur' },
+              { validator:function(r, v, f) {
+                var ret = cs.ip(v);
+                if (ret == 1 || ret == 2 || ret == 3 || ret == 4) {
+                    f(_this.$t('static_dhcp.msg1'));
+                }
+                if(v == _this.lanIp){
+                    f(_this.$t('static_dhcp.msg2'));
+                }
+                f();
+              },trigger: 'blur' }
+          ],
+          staticMac: [
+              { validator:function(r, v, f) {
+                var ret = cs.mac(v);
+                if(ret == 0 || ret == 1){
+                    f(_this.$t('static_dhcp.msg3'));
+                }else if (ret == 2) {
+                    f(_this.$t('static_dhcp.msg4'));
+                }else if (ret == 3) {
+                    f(_this.$t('static_dhcp.msg5'));
+                }else{
+                    f();
+                }
+              },trigger: 'blur' }
+          ]
+      }
+    },
+    staticDhcpColumns: function() {
+        var _this = this;
+        return [{
+            type: 'selection',
+            key: 'idx',
+            width:'100',
+            sortable: true
+        }, {
+            title: 'ID',
+            key: 'idx',
+            sortable: true
+        }, {
+            title: this.$t('static_dhcp.ip'),
+            key: 'ip',
+            sortable: true
+        }, {
+            title: this.$t('static_dhcp.mac'),
+            key: 'mac',
+            sortable: true
+        }, {
+            title: this.$t('static_dhcp.select'),
+            key: 'idx',
+            align: 'center',
+            render: function(h, params) {
+                return h('Poptip',{
+                    props: {
+                        confirm: true,
+                        title: _this.$t('macf.msg12'),
+                        "ok-text":_this.$t('common.ok'),
+                        "cancel-text":_this.$t('common.cancel')
+                    },
+                    on: {
+                        "on-ok": function(){
+                            _this.deleteData(params);
+                        }
+                    }
+                }, [
+                    h('Button', {
+                        props: {
+                            type: 'error',
+                            size: 'small'
+                        },
+                    }, _this.$t('static_dhcp.delete'))
+                ]);
+            }
+        }];
+        },
+    },
+  created:function() {
+    var _this = this;
+      uiPost.getStaticDhcpConfig(function(data) {
+        _this.formValidate.status = data[0].enable == "1"? true : false;
+        _this.lanIp = data[0].lanIp;
+        _this.lanNetmask = data[0].lanNetmask;
+        if (data[0].lanIp) {
+            var temp = data[0].lanIp.split('.');
+            _this.formValidate.staticIp = temp[0]+'.'+temp[1]+'.'+temp[2]+'.';
+            _this.formValidate.staticIp1 = temp[0]+'.'+temp[1]+'.'+temp[2]+'.';
+        }
+        var rule_num = data.length;
+        if (rule_num >= 2){
+            _this.staticDhcpData = data.slice(1);
+        }
+      });
+  },
+  methods:{
+    handleSubmit: function(name) {
+        var _this = this;
+        _this.applyLoading = true;
+        _this.formValidate.staticIp = _this.formValidate.staticIp1 + _this.formValidate.staticIp4;
+        _this.$refs[name].validate(function(valid){
+            if (valid) {
+                if (_this.staticDhcpData.length == 10) {
+                    _this.$Message.error(_this.$t('static_dhcp.msg7'));
+                    return false;
+                }
+                if (_this.staticDhcpData.length) {
+                    for(var i=0; i<_this.staticDhcpData.length; i++) {
+                        if(
+                            _this.formValidate.staticMac.toUpperCase() == _this.staticDhcpData[i].mac.toUpperCase() ||
+                            _this.formValidate.staticIp == _this.staticDhcpData[i].ip
+                        ) {
+                            _this.$Message.error(_this.$t('static_dhcp.msg6'));
+                            _this.applyLoading = false;
+                            return false;
+                        }
+                    }
+                }
+                var postVar = {};
+                postVar.ipAddress = _this.formValidate.staticIp;
+                postVar.macAddress = _this.formValidate.staticMac;
+                postVar.addEffect = "0";
+                uiPost.setStaticDhcpConfig(postVar,function(data){
+                    _this.applyLoading = false;
+                    _this.modalLoad(8,function(){
+                        location.href = location.href;
+                    });
+                });
+            }else{
+                _this.applyLoading = false;
+            }
+        })
+    },
+    showClientList:function () { 
+        var _this = this;
+        this.showModel = true;
+        uiPost.getArpTable(function(data) {
+            _this.arpData = data.slice(1);
+            _this.arpLoading = false;
+        });
+    },
+    ok:function () {
+        this.formValidate.staticIp = this.ip;
+        this.formValidate.staticIp4 = this.ip.split(".")[3];
+        this.formValidate.staticMac = this.mac;
+    },
+    cancel:function () {
+    },
+    selectTable:function (obj) {
+        this.ip = obj.ip;
+        this.mac = obj.mac;
+    },
+    submitStatus:function(){
+        var postVar = {};
+        if(true == this.formValidate.status){
+            postVar.enable = "1";
+        }else{
+            postVar.enable = "0";
+        }
+        postVar.addEffect = "1";
+        uiPost.setStaticDhcpConfig(postVar);
+    },
+    deleteData:function (obj) {
+        var _this = this;
+        var postVar = {};
+        postVar[obj.row.delRuleName] = obj.index;
+        uiPost.delStaticDhcpConfig(postVar,function(){
+            _this.modalLoad(8,function(){
+                _this.staticDhcpData.splice(obj.index, 1);
+            });
+        });
+    },
+    tableSelectAtonce:function(){
+        var _this = this;
+        var getSelection = this.$refs.tableSelect.getSelection();
+        if (getSelection.length>0) {
+            _this.atonceSelectFalg = true;
+        }else{
+            _this.atonceSelectFalg = false;
+        }
+    },
+    tableSelect:function(status){
+        var _this = this;
+        if (status) {
+            var getSelection = this.$refs.tableSelect.getSelection();
+            if (getSelection.length>0) {
+                var postVar = {};
+                for(var i=0; i<getSelection.length; i++)
+                {
+                    postVar[getSelection[i].delRuleName] = i;
+                }
+                uiPost.delStaticDhcpConfig(postVar,function(){
+                    _this.modalLoad(8,function(){
+                        _this.$Message.success({content:_this.$t('static_dhcp.msg11'),onClose:function(){
+                            location.href = location.href;
+                        }});
+                    });
+                });
+            }
+        }else{
+            this.$refs.tableSelect.selectAll(status);
+        }
+    },
+    modalLoad:function(time,callback){
+        var _this = this;
+        this.percent = 0;
+        _this.$Modal.success({
+          loading:true,
+          render: function(h) {
+            return h('div',[
+              _this.$t('common.loading'),
+              h('Progress',{
+                attrs:{ percent:_this.percent }
+              })
+            ])
+          },
+        });
+        var percentTimer = setInterval(function(){
+          if (_this.percent>=100) {
+            clearInterval(percentTimer);
+            _this.$Modal.remove();
+            callback();
+          }
+          _this.percent++;
+        },cs.getTimer(time));
+    }
+  }
+};
+</script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>

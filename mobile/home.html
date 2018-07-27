@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+  <title></title>
+  <link rel="stylesheet" href="/plugin/ydui/ydui.rem.css">
+  <link rel="stylesheet" href="/static/css/style.mobile.css">
+</head>
+<body>
+<div id="app"></div>
+<script type="text/x-template" id="main">
+<div class="main">
+
+<yd-flexbox direction="vertical" >
+  <!-- <div><Icon type="planet" size="150">cs</Icon></div> -->
+  <!-- <h2> CS </h2> -->
+  <p>{{ productName }} - {{ fmVersion }}</p>
+  <br>
+</yd-flexbox>
+<yd-grids-group :rows="2">
+  <yd-grids-item type="a" href="javascript:;">
+      <span slot="text"><Icon type="arrow-up-c"></Icon> {{up}}KB/s</span>
+  </yd-grids-item>
+  <yd-grids-item type="a" href="javascript:;">
+      <span slot="text"><Icon type="arrow-down-c"></Icon> {{down}}KB/s</span>
+  </yd-grids-item>
+</yd-grids-group>
+
+<yd-cell-group title=" ">
+     <yd-tab>
+        <yd-tab-panel :label="$t('index.sys_info')" active>
+            <yd-cell-item>
+                <span slot="left">{{ $t('index.up_time') }}</span>
+                <span slot="right">{{ upTimeMsg }}</span>
+            </yd-cell-item>
+            <yd-cell-item>
+                <span slot="left">{{ $t('index.version') }}</span>
+                <span slot="right">{{ fmVersion }}</span>
+            </yd-cell-item>
+            <yd-cell-item>
+                <span slot="left">{{ $t('index.build_time') }}</span>
+                <span slot="right">{{ buildTimeMsg }}</span>
+            </yd-cell-item>
+            <yd-cell-item>
+                <span slot="left">{{ $t('index.op_mode') }}</span>
+                <span slot="right">{{ operationModeMsg }}</span>
+            </yd-cell-item>
+        </yd-tab-panel>
+		<yd-tab v-if="wan_info">
+			<yd-tab-panel :label="$t('index.wan_info')">
+				<yd-cell-item>
+					<span slot="left">{{ $t('index.wan_status') }}</span>
+					<span slot="right">{{ wanModeMsg }}</span>
+				</yd-cell-item>
+				<yd-cell-item>
+					<span slot="left">{{ $t('index.wan_time') }}</span>
+					<span slot="right">{{ wanConnTimeMsg }}</span>
+				</yd-cell-item>
+				<yd-cell-item>
+					<span slot="left">{{ $t('index.ip') }}</span>
+					<span slot="right">{{ wanConnStatus == "connected"? wanIp : '0.0.0.0' }}</span>
+				</yd-cell-item>
+			</yd-tab-panel>
+			</yd-tab>
+        <yd-tab-panel :label="$t('index.lan_info')" >
+            <yd-cell-item>
+                <span slot="left">{{ $t('index.ip') }}</span>
+                <span slot="right">{{ lanIp }}</span>
+            </yd-cell-item>
+            <yd-cell-item>
+                <span slot="left">{{ $t('index.user_num') }}</span>
+                <span slot="right">{{ lanUserNum }}</span>
+            </yd-cell-item>
+        
+        </yd-tab-panel>
+    </yd-tab>
+</yd-cell-group>
+<!-- 不能删除 -->
+<br>
+<slot name="footer"></slot>
+</div>
+</script>
+</body>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/ydui/ydui.rem.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+var cs_main = {
+  template:"#main",
+  data:function(){
+    var _this = this;
+    return {
+      globalConfig:globalConfig,
+      menu:mobileMenu,
+      selected:'status',
+      popupVisible:true,
+      checkedNames:[],
+        loading1: false,
+        showCurrentTabs: "1",
+        operationMode: '',
+        upTime: '',
+        fmVersion: '',
+        buildTime: '',
+        wanConnStatus: '',
+        wanConnTime: '',
+        wanMode: '',
+        wanIp: '',
+        lanIp: '',
+        lanUserNum: '',
+        applyLoading: false,
+        tab: '0',
+        timestamp: 3000,
+        productName:'',
+        timer: {},
+        timerNum: 0,
+        start: false,
+        showModel: false,
+        analysisData: [],
+        productName: '',
+        up:'0',
+        down:'0',
+		wan_info: true
+    }
+  },
+  computed:{
+  	upTimeMsg: function() {
+  		var v = this.upTime.split(";");
+      return v[0] + " " + this.$t('index.day') + " " + v[1] + " " + this.$t('index.hour') + " " + v[2] + " " + this.$t('index.min') + " " + v[3] + " " + this.$t('index.sec');
+  	},
+    buildTimeMsg:function(){
+      	if (this.buildTime.indexOf("-") != -1){
+        	return this.buildTime;
+      	} else {
+        	var month = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        	for (var j = 0; j < 12; j++) {
+				if (this.buildTime.split(" ")[0] == month[j]) {
+					var time = j + 1;
+				}
+        	}
+        	return this.buildTime.split(" ")[2] + "-" + time + "-" + this.buildTime.split(" ")[1] + " " + this.buildTime.split(" ")[3];
+      	}
+    },
+    operationModeMsg:function(){
+      if (this.operationMode == 0) {
+          return this.$t('index.gateway_mode');
+      } else if (this.operationMode == 1) {
+		  this.wan_info = false;
+          return this.$t('index.bridge_mode');
+      } else if (this.operationMode == 2) {
+          return this.$t('index.repeater_mode');
+      } else if (this.operationMode == 3) {
+          return this.$t('index.wisp_mode');
+      }
+    },
+    wanModeMsg:function(){
+      var temp = '';
+      if (this.wanMode == 0) {
+          if (this.wanConnStatus == "connected") {
+              temp = this.$t('index.staticIp_mode') + this.$t('index.connected');
+          } else {
+              temp = this.$t('index.staticIp_mode') + this.$t('index.disconnected');
+          }
+      } else if (this.wanMode == 1) {
+          if (this.wanConnStatus == "connected") {
+              temp = 'DHCP' + this.$t('index.connected');
+          } else {
+              temp = 'DHCP' + this.$t('index.disconnected');
+          }
+      } else if (this.wanMode == 3) {
+          if (this.wanConnStatus == "connected") {
+              temp = 'PPPoE' + this.$t('index.connected');
+          } else {
+              temp = 'PPPoE' + this.$t('index.disconnected');
+          }
+      }
+      return temp;
+    },
+    wanConnTimeMsg:function(){
+        var v = this.wanConnTime.split(";");
+        return v[0] + " " + this.$t('index.day') + " " + v[1] + " " + this.$t('index.hour') + " " + v[2] + " " + this.$t('index.min') + " " + v[3] + " " + this.$t('index.sec');
+    }
+  },
+  created:function(){
+    localStorage.setItem('cs_mobile_menu', 'status');
+    var _this = this;
+    this.loading1 = true;
+    uiPost.getSysStatusCfg(function(data) {
+        _this.upTime = data.upTime;
+        _this.customerUrl = data.customerUrl;
+        _this.fmVersion = data.fmVersion;
+        _this.buildTime = data.buildTime;
+        _this.wanMode = data.wanMode;
+        _this.wanConnStatus = data.wanConnStatus;
+        _this.wanConnTime = data.wanConnTime;
+        _this.wanIp = data.wanIp;
+        _this.lanIp = data.lanIp;
+        _this.lanUserNum = data.lanUserNum;
+        _this.productName = data.productName;
+		_this.operationMode = data.operationMode;
+        _this.loading1 = false;
+    });
+    setInterval(function(){
+      _this.getNet();
+    },3000);
+  },
+  methods:{
+    getNet:function(){
+      var _this = this;
+      uiPost.getNetInfo(function(data){
+        _this.up = data.up;
+        _this.down = data.down;
+      });
+    },
+  }
+};
+</script>
+<script src="/static/js/main.mobile.js"></script>
+</html>

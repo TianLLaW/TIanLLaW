@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title></title>
+  <link rel="stylesheet" href="/plugin/iview/styles/iview.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div id="app"></div>
+
+<script type="text/x-template" id="main">
+<div class="main">
+  <Form :label-width="100">
+    <FormItem>
+      <Row>
+        <br>
+        <Col span="13">
+         <h1>{{ $t('firmware.title') }}</h1>
+         <br>
+        <span>{{ $t('firmware.help') }}</span>
+        <br>
+        <hr>
+        </Col>
+      </Row>
+    </FormItem>
+
+    <FormItem>
+        <Row>
+            <Col span="13">
+              <span>{{ $t('firmware.firmware_ver') }}</span>
+              <br>
+            </Col>
+        </Row>
+    </FormItem>
+    <FormItem>
+        <Row>
+            <Col span="5">
+              <span>{{ $t('firmware.select_file') }}</span>
+              <br>
+            </Col>
+            <Col span="8">
+              <Upload
+                ref="upload"
+                :before-upload="handleUpload"
+                :action="upload.action"
+                :data="upload.data"
+                :max-size="upload.maxSize"
+                :on-exceeded-size="exceededSize"
+                :format="upload.format"
+                :on-format-error="formatError"
+                :on-success="uploadSuccess"
+              >
+                <Button icon="ios-cloud-upload-outline">{{ $t('firmware.select_file')+' & '+$t('firmware.upgrade')   }}</Button>
+              </Upload>
+            </Col>
+        </Row>
+        <Row>
+          <Col span="13">
+            <hr>
+          </Col>
+        </Row>
+    </FormItem>
+</Form>
+</div>
+</script>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/iview/iview.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/layout.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+var cs_main = {
+  template:"#main",
+  data:function(){
+    return {
+      globalConfig:globalConfig,
+      loading:false,
+      upload: {
+        file: null,
+        action: '/cgi-bin/cstecgi.cgi?action=upload&setting/setUpgradeUboot',
+        format:['web','bin'],
+        data:{},
+        maxSize: 4000,
+      },
+      percent: 0
+    }
+  },
+  computed:{
+  },
+  created:function() {
+    globalConfig.showWechatQR = false;
+    globalConfig.showLanguage = false;
+    globalConfig.showHelp = false;
+    globalConfig.showMenu = false;
+    globalConfig.showSearch = false;
+    var _this = this;
+    uiPost.UbootUpgrade(function(data) {
+        _this.lanip = data.LanIp;
+    });
+  },
+  methods:{
+    handleUpload: function(file) {
+        this.upload.file = file;
+    },
+    exceededSize: function() {
+      this.$Message.error({content:this.$t('firmware.msg4',[cs.bytesToSize( (parseInt(this.upload.maxSize)*1000) )]),duration: 5});
+    },
+    formatError: function() {
+      this.$Message.error({content:this.$t('firmware.msg2',[this.upload.format.join('、')]),duration: 5});
+    },
+    uploadSuccess:function(data){
+        var _this = this;
+        var percentTimer = null;
+        if (data.upgradeStatus == "1") {
+          _this.$Modal.success({
+            loading:true,
+            render: function(h) {
+              return h('div',[
+                _this.$t('common.loading'),
+                h('Progress',{
+                  attrs:{ percent:_this.percent }
+                })
+              ])
+            },
+          });
+          percentTimer = setInterval(function(){
+            if (_this.percent>=100) {
+              clearInterval(percentTimer);
+              location.href='/login.html';
+            }
+            _this.percent++;
+          },cs.getTimer(120));
+        } else {
+            if(data.upgradeERR != ""){
+              clearInterval(percentTimer);
+              _this.$Modal.remove();
+              _this.$Message.error({
+                duration: 5,
+                content: _this.$t('firmware['+data.upgradeERR+']')
+              });
+            }
+        }
+      }
+  }
+};
+</script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title></title>
+  <link rel="stylesheet" href="/plugin/iview/styles/iview.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div id="app"></div>
+
+<script type="text/x-template" id="main">
+<Col class="cs-container" span="20" >
+    <slot name="breadcrumb"></slot>
+    <!-- 这个不能删除，用于面包屑显示 -->
+    <div class="cs-content">
+        <Row>
+          <Col :xs="globalConfig.xs" :sm="globalConfig.sm" :md="globalConfig.md" :lg="globalConfig.lg">
+            <Card>
+            <Alert>
+              <!-- <h3>设置</h3> -->
+              {{ $t('lan.help') }}
+            </Alert>
+            <Form ref="formValidate" :model="formValidate" :rules="ruleValidate" :label-width="globalConfig.labelWith" label-position="left">
+                <template v-if="globalConfig.currentMode != 'BR'">
+                  <FormItem :label="$t('lan.ip')" prop="lanIp">
+                      <Input v-model="formValidate.lanIp" @input="autoChangePool"></Input>
+                  </FormItem>
+                  <FormItem :label="$t('lan.mask')" prop="lanNetmask">
+                      <Input v-model="formValidate.lanNetmask" @input="autoChangePool"></Input>
+                  </FormItem>
+                  <FormItem :label="$t('lan.server')" prop="dhcp">
+                      <i-switch v-model="formValidate.dhcp" size="large" >
+                          <span slot="open">{{ $t('common.enabled') }}</span>
+                          <span slot="close">{{ $t('common.disabled') }}</span>
+                      </i-switch>
+                  </FormItem>
+                  <Col v-if="formValidate.dhcp" >
+                    <FormItem :label="$t('lan.sip')" prop="dhcpStart">
+                        <Input v-model="formValidate.dhcpStart" ></Input>
+                    </FormItem>
+                    <FormItem :label="$t('lan.eip')" prop="dhcpEnd">
+                        <Row>
+                            <Col span="18"><Input v-model="formValidate.dhcpEnd" ></Input></Col>
+                            <Col span="5" offset="1"><Button long @click="showGetModel">{{ $t('lan.show') }}</Button></Col>
+                        </Row>
+                    </FormItem>
+                    <FormItem :label="$t('lan.lease_time')">
+                        <Select v-model="formValidate.dhcpLease" :key="$t('lan.lease_time')">
+                            <Option value="300">5 {{ $t('lan.minutes') }}</Option>
+                            <Option value="900">15 {{ $t('lan.minutes') }}</Option>
+                            <Option value="3600">1 {{ $t('lan.hour') }}</Option>
+                            <Option value="7200">2 {{ $t('lan.hours') }}</Option>
+                            <Option value="86400">1 {{ $t('lan.day') }}</Option>
+                        </Select>
+                    </FormItem>
+                  </Col>
+                </template>
+                <template v-if="globalConfig.currentMode == 'BR'">
+                    <FormItem :label="$t('lan.lanDhcpcSwitch')">
+                        <Select v-model="formValidate.lanDhcpcSwitch" :key="$t('lan.lanDhcpcSwitch')">
+                            <Option value="1">{{ $t('lan.dynamic') }}</Option>
+                            <Option value="0">{{ $t('lan.manual') }}</Option>
+                        </Select>
+                    </FormItem>
+                    <Col v-show="formValidate.lanDhcpcSwitch == 0">
+                      <FormItem :label="$t('lan.ip')" prop="lanIp">
+                          <Input v-model="formValidate.lanIp"></Input>
+                      </FormItem>
+                      <FormItem :label="$t('lan.mask')" prop="lanNetmask">
+                          <Input v-model="formValidate.lanNetmask"></Input>
+                      </FormItem>
+                      <FormItem :label="$t('lan.gateway')" prop="lanGateway">
+                          <Input v-model="formValidate.lanGateway"></Input>
+                      </FormItem>
+                      <FormItem label="DNS" prop="priDns">
+                          <Input v-model="formValidate.priDns"></Input>
+                      </FormItem>
+                    </Col>
+                </template>
+              <!-- btn -->
+              <FormItem>
+                  <Button type="primary" @click="handleSubmit('formValidate')" :loading="applyLoading">{{ $t('common.apply') }}</Button>
+              </FormItem>
+          </Form>
+          </Card>
+        </Col>
+        </Row>
+    </div>
+
+    <Modal
+        v-model="showModel"
+        :title="$t('lan.modal_title')"
+        :okText="$t('common.ok')"
+        :cancelText="$t('common.cancel')"
+        @on-ok="ok"
+        @on-cancel="cancel">
+        <Table highlight-row :columns="dhcpColumns" :data="getDhcpCliList" @on-current-change="selectTable">
+        </Table>
+    </Modal>
+    <!-- 这个不能删除，用于底部显示 -->
+    <slot name="footer"></slot>
+</Col>
+</script>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/iview/iview.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/layout.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+var cs_main = {
+  template:"#main",
+  data:function(){
+    var _this = this;
+    return {
+      globalConfig:globalConfig,
+      applyLoading:false,
+      operationMode:'',
+      wanIp:'',
+      formValidate: {
+          lanIp:'',
+          lanNetmask:'',
+          dhcp:false,
+          dhcpStart:'',
+          dhcpEnd:'',
+          dhcpLease:'300',
+          lanDhcpcSwitch:'1',
+          lanGateway:'',
+          priDns:''
+      },
+      showModel:false,
+      dhcpColumns: [
+        {
+          title: '#',
+          key: 'idx'
+        },
+        {
+          title: 'IP',
+          key: 'ip'
+        },
+        {
+          title: 'MAC',
+          key: 'mac'
+        }
+      ],
+      getDhcpCliList: [],
+      percent:0
+    }
+  },
+  computed:{
+      ruleValidate: function() {
+        var _this = this;
+        return {
+          lanIp: [
+            { required: true, message: this.$t('lan.msg1',[this.$t('lan.ip')]), trigger: 'blur' },
+            { validator:function(r, v, f) {
+              var _s = cs.ip(v);
+              if(_s != 99) {
+                f(_this.$t('lan.ip')+_this.$t('lan["msg'+(_s+1)+'"]'));
+              }else{
+                f();
+              }
+            },trigger: 'blur' }
+          ],
+          lanNetmask: [
+            { required: true, message: this.$t('lan.msg1',[this.$t('lan.mask')]), trigger: 'blur' },
+            { validator:function(r, v, f) {
+              var _s = cs.mask(v);
+              if(_s == 0 || _s == 1) {
+                f(_this.$t('lan.msg6'));
+              }else{
+                f();
+              }
+            },trigger: 'blur' }
+          ],
+          dhcpStart: [
+            { required: true, type:"string", message: this.$t('lan.msg1',[this.$t('lan.sip')]), trigger: 'blur' },
+            { validator:function(r, v, f) {
+              var _s = cs.ip(v);
+              if(_s != 99) {
+                f(_this.$t('lan.sip')+_this.$t('lan["msg'+(_s+1)+'"]'));
+              }else{
+                f();
+              }
+            },trigger: 'blur' }
+          ],
+          dhcpEnd: [
+            { required: true, type:"string", message: this.$t('lan.msg1',[this.$t('lan.eip')]), trigger: 'blur' },
+            { validator:function(r, v, f) {
+              var _s = cs.ip(v);
+              if(_s != 99) {
+                f(_this.$t('lan.eip')+_this.$t('lan["msg'+(_s+1)+'"]'));
+              }else{
+                f();
+              }
+            },trigger: 'blur' }
+          ],
+          lanGateway: [
+            { required: true, type:"string", message: this.$t('lan.msg1',[this.$t('lan.gateway')]), trigger: 'blur' },
+            { validator:function(r, v, f) {
+              var _s = cs.ip(v);
+              if(_s != 99) {
+                f(_this.$t('lan.gateway')+_this.$t('lan["msg'+(_s+1)+'"]'));
+              }else{
+                  if(
+                       _this.formValidate.lanGateway.split('.')[0] != _this.formValidate.lanIp.split('.')[0]
+                    || _this.formValidate.lanGateway.split('.')[1] != _this.formValidate.lanIp.split('.')[1] 
+                    || _this.formValidate.lanGateway.split('.')[2] != _this.formValidate.lanIp.split('.')[2]
+                  ){
+                    f(_this.$t('wan.msg6'));
+                  }
+                  /*if(_this.formValidate.staticGw == _this.formValidate.staticIp){
+                    f(_this.$t('wan.msg7'));
+                  }*/
+                  f();
+                }
+                f();
+            },trigger: 'blur' }
+          ],
+          priDns: [
+            { required: true, type:"string", message: this.$t('lan.msg1',[this.$t('lan.pri_dns')]), trigger: 'blur' },
+            { validator:function(r, v, f) {
+              var _s = cs.ip(v);
+              if(_s != 99) {
+                f(_this.$t('lan.pri_dns')+_this.$t('lan["msg'+(_s+1)+'"]'));
+              }else{
+                f();
+              }
+            },trigger: 'blur' }
+          ]
+      }
+    },
+  },
+  created:function() {
+    var _this = this;
+    uiPost.getLanConfig(function(data) {
+      _this.formValidate.lanIp      = data.lanIp;
+      _this.formValidate.lanNetmask = data.lanNetmask;
+      _this.formValidate.dhcp       = data.dhcpServer=="1"?true:false;
+      _this.formValidate.dhcpStart  = data.dhcpStart;
+      _this.formValidate.dhcpEnd    = data.dhcpEnd;
+      _this.formValidate.dhcpLease  = data.dhcpLease;
+      _this.operationMode           = data.operationMode;
+      _this.wanIp                   = data.wanIp;
+      _this.formValidate.lanDhcpcSwitch = data.LanAutoDhcp;
+      _this.formValidate.lanGateway = data.lan_gateway;
+      _this.formValidate.priDns = data.wan_primary_dns;
+    });
+  },
+  methods:{
+    autoChangePool:function(){
+        var ipaddr1 = this.formValidate.lanIp.split(".")[0];
+        var ipaddr2 = this.formValidate.lanIp.split(".")[1];
+        var ipaddr3 = this.formValidate.lanIp.split(".")[2];
+        var ipaddr4 = this.formValidate.lanIp.split(".")[3];
+        if(Number(ipaddr4 > 254)){return false;}
+        var maskaddr1 = this.formValidate.lanNetmask.split(".")[0];
+        var maskaddr2 = this.formValidate.lanNetmask.split(".")[1];
+        var maskaddr3 = this.formValidate.lanNetmask.split(".")[2];
+        var maskaddr4 = this.formValidate.lanNetmask.split(".")[3];
+        var ipaddr = (Number(ipaddr1)*16777216)+(Number(ipaddr2)<<16)+(Number(ipaddr3)<<8)+(Number(ipaddr4));
+        var maskaddr = (Number(maskaddr1)*16777216)+(Number(maskaddr2)<<16)+(Number(maskaddr3)<<8)+(Number(maskaddr4));
+        var ip1 = Math.floor(ipaddr/4);
+        var ip2 = Number(ipaddr%4);
+        var mask1 = Math.floor(maskaddr/4);
+        var mask2 = Number(maskaddr%4);
+        var network=Number(ip1&mask1)*4+Number(ip2&mask2);
+        var netIp = (ipaddr&(~maskaddr))+1;
+        var firstIpAdd = 0;
+        if(netIp<256&&netIp>128){
+            netIp = 1;
+            firstIpAdd = network+netIp;
+        }else{
+            if(Number(ipaddr4)>128) {netIp=1;}
+                firstIpAdd = network+netIp;
+            }
+        var ipStart1 = Math.floor(Number(firstIpAdd/16777216));
+        var ipStart2 = Math.floor(Number(firstIpAdd%16777216)/65536);
+        var ipStart3 = Math.floor(Number(firstIpAdd%65536)/256);
+        var ipStart4 = Math.floor(Number(firstIpAdd%65536)%256);
+        this.formValidate.dhcpStart = ipStart1 +"."+ ipStart2 +"."+ ipStart3 +"."+ ipStart4;
+        var network1 = Math.floor(network/2);
+        var network2 = Number(network%2);
+        var lastIpAdd=Number(network2|((~maskaddr)%2))+Number(network1|((~maskaddr)/2))*2-1;
+        var netIp1 = (ipaddr&(~maskaddr))+1;
+        if((netIp1>129&&maskaddr==4294967040) || netIp1 == 129) {
+            lastIpAdd = network + netIp1 - 2;
+        }
+        if(lastIpAdd == ipaddr) lastIpAdd--;
+        var ipEnd1 = Math.floor(Number(lastIpAdd/16777216));
+        var ipEnd2 = Math.floor(Number(lastIpAdd%16777216)/65536);
+        var ipEnd3 = Math.floor(Number(lastIpAdd%65536)/256);
+        var ipEnd4 = Math.floor(Number(lastIpAdd%65536)%256);
+        this.formValidate.dhcpEnd = ipEnd1 +"."+ ipEnd2 +"."+ ipEnd3 +"."+ ipEnd4;
+    },
+    handleSubmit: function(name) {
+        var _this = this;
+        if (1 == this.formValidate.dhcp) {
+          if(cs.ip_range(this.formValidate.dhcpStart,this.formValidate.dhcpEnd) == 0){
+              this.$Message.error(this.$t('lan.msg7'));
+              return false;
+          }
+          if(this.formValidate.dhcpStart == this.formValidate.lanIp || this.formValidate.dhcpEnd == this.formValidate.lanIp){
+              this.$Message.error(this.$t('lan.msg10'));
+              return false;
+          }
+          if(0 == cs.ip_subnet(this.formValidate.lanIp,this.formValidate.lanNetmask,this.formValidate.dhcpStart)){
+              this.$Message.error(this.$t('lan.msg12'));
+              return false;
+          }
+          if(0 == cs.ip_subnet(this.formValidate.lanIp,this.formValidate.lanNetmask,this.formValidate.dhcpEnd)){
+              this.$Message.error(this.$t('lan.msg13'));
+              return false;
+          }
+          if(1 == cs.ip_subnet(this.formValidate.lanIp,this.formValidate.lanNetmask,this.wanIp)){
+              this.$Message.error(this.$t('lan.msg14'));
+              return false;
+          }
+        }
+        this.applyLoading = true;
+        this.$refs[name].validate(function(valid){
+            if (valid) {
+              var lanip = _this.formValidate.lanIp;
+              var postVar = {};
+              postVar.lanIp      = _this.formValidate.lanIp;
+              postVar.lanNetmask = _this.formValidate.lanNetmask;
+              postVar.dhcpServer = _this.formValidate.dhcp?"1":"0";
+              postVar.dhcpStart  = _this.formValidate.dhcpStart;
+              postVar.dhcpEnd    = _this.formValidate.dhcpEnd;
+              postVar.dhcpLease  = _this.formValidate.dhcpLease;
+              postVar.LanAutoDhcp = _this.formValidate.lanDhcpcSwitch;
+              postVar.lanNetgateway = _this.formValidate.lanGateway;
+              postVar.priDns = _this.formValidate.priDns;
+              uiPost.setLanConfig(postVar,function(data){
+                var time=data.wtime;
+                _this.$Modal.success({
+                  loading:true,
+                  render: function(h) {
+                    return h('div',[
+                      _this.$t('common.loading'),
+                      h('Progress',{
+                        attrs:{ percent:_this.percent }
+                      })
+                    ])
+                  },
+                });
+                var percentTimer = setInterval(function(){
+                  if (_this.percent>=100) {
+                    clearInterval(percentTimer);
+                    location.href='http://'+lanip+'/login.html';
+                  }
+                  _this.percent++;
+                },cs.getTimer(time));
+              });
+            } else {
+              // _this.$Message.error();
+              _this.applyLoading = false;
+            }
+        })
+    },
+    handleReset: function(name) {
+        this.$refs[name].resetFields();
+    },
+    ok:function () {
+        // this.$Message.info('Clicked ok');
+    },
+    cancel:function () {
+        // this.$Message.info('Clicked cancel');
+    },
+    selectTable:function (value) {
+      // select value;
+      // console.log(value);
+      // this.showModel = false;
+      // this.$Message.info('name:'+value.name+',age:'+value.age);
+    },
+    showGetModel:function(){
+      var _this = this;
+      uiPost.getDhcpCliList(function(data){
+          if(data.length!=0){
+            if(data[0].enable == 1){
+              data = data.slice(1);    
+            }else{
+              data = data.slice(0);
+            }
+          }else{
+            data = data.slice(1);
+          }
+          _this.getDhcpCliList = data;
+          _this.showModel = true;
+      });
+    }
+  }
+};
+</script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>

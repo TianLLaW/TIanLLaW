@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+  <title></title>
+  <link rel="stylesheet" href="/plugin/ydui/ydui.rem.css">
+  <link rel="stylesheet" href="/static/css/style.mobile.css">
+</head>
+<body>
+<div id="app"></div>
+<script type="text/x-template" id="main">
+<div class="main">
+<yd-cell-group>
+    <yd-cell-item>
+        <span slot="left">{{ $t("lan.ip") }}：</span>
+        <yd-input slot="right" type="text" v-model="formValidate.lanIp" required @input="autoChangePool"></yd-input>
+    </yd-cell-item>
+    <yd-cell-item>
+        <span slot="left">{{ $t("lan.mask") }}：</span>
+        <yd-input slot="right" type="text" v-model="formValidate.lanNetmask" required @input="autoChangePool"></yd-input>
+    </yd-cell-item>
+    <yd-cell-item>
+        <span slot="left">{{ $t("lan.server") }}</span>
+        <yd-switch slot="right" v-model="formValidate.dhcp"></yd-switch>
+    </yd-cell-item>
+    <yd-cell-item v-show="formValidate.dhcp">
+        <span slot="left">{{ $t("lan.sip") }}：</span>
+        <yd-input slot="right" type="text" v-model="formValidate.dhcpStart" required></yd-input>
+    </yd-cell-item>
+    <yd-cell-item v-show="formValidate.dhcp">
+        <span slot="left">{{ $t("lan.eip") }}：</span>
+        <yd-input slot="right" type="text" v-model="formValidate.dhcpEnd" required></yd-input>
+    </yd-cell-item>
+</yd-cell-group>
+<yd-button-group>
+    <yd-button size="large" type="primary" @click.native="handleSubmit">{{ $t('wan.apply') }}</yd-button>
+</yd-button-group>
+
+<!-- 不能删除 -->
+<br>
+<slot name="footer"></slot>
+</div>
+</script>
+</body>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/ydui/ydui.rem.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+var cs_main = {
+  template:"#main",
+  data:function(){
+    var _this = this;
+    return {
+      globalConfig:globalConfig,
+      menu:mobileMenu,
+      selected:'status',
+      popupVisible:true,
+      formValidate: {
+          lanIp:'',
+          lanNetmask:'',
+          dhcp:false,
+          dhcpStart:'',
+          dhcpEnd:''
+      },
+    }
+  },
+  computed:{
+    
+  },
+  created:function(){
+    globalConfig.iHeader = this.$t('menu.lan');
+    var _this = this;
+      var postVar = {};
+      uiPost.getLanConfig(function(data) {
+        console.log(data);
+          _this.formValidate.lanIp      = data.lanIp;
+          _this.formValidate.lanNetmask = data.lanNetmask;
+          _this.formValidate.dhcp       = data.dhcpEnabled=="1"?true:false;
+          _this.formValidate.dhcpStart  = data.dhcpStart;
+          _this.formValidate.dhcpEnd    = data.dhcpEnd;
+          _this.operationMode           = data.operationMode;
+          _this.wanIp                   = data.wanIp;
+      });
+  },
+  methods:{
+    autoChangePool:function(){
+        var ipaddr1 = this.formValidate.lanIp.split(".")[0];
+        var ipaddr2 = this.formValidate.lanIp.split(".")[1];
+        var ipaddr3 = this.formValidate.lanIp.split(".")[2];
+        var ipaddr4 = this.formValidate.lanIp.split(".")[3];
+        if(Number(ipaddr4 > 254)){return false;}
+        var maskaddr1 = this.formValidate.lanNetmask.split(".")[0];
+        var maskaddr2 = this.formValidate.lanNetmask.split(".")[1];
+        var maskaddr3 = this.formValidate.lanNetmask.split(".")[2];
+        var maskaddr4 = this.formValidate.lanNetmask.split(".")[3];
+        var ipaddr = (Number(ipaddr1)*16777216)+(Number(ipaddr2)<<16)+(Number(ipaddr3)<<8)+(Number(ipaddr4));
+        var maskaddr = (Number(maskaddr1)*16777216)+(Number(maskaddr2)<<16)+(Number(maskaddr3)<<8)+(Number(maskaddr4));
+        var ip1 = Math.floor(ipaddr/4);
+        var ip2 = Number(ipaddr%4);
+        var mask1 = Math.floor(maskaddr/4);
+        var mask2 = Number(maskaddr%4);
+        var network=Number(ip1&mask1)*4+Number(ip2&mask2);
+        var netIp = (ipaddr&(~maskaddr))+1;
+        var firstIpAdd = 0;
+        if(netIp<256&&netIp>128){
+            netIp = 1;
+            firstIpAdd = network+netIp;
+        }else{
+            if(Number(ipaddr4)>128) {netIp=1;}
+            firstIpAdd = network+netIp;
+        }
+        var ipStart1 = Math.floor(Number(firstIpAdd/16777216));
+        var ipStart2 = Math.floor(Number(firstIpAdd%16777216)/65536);
+        var ipStart3 = Math.floor(Number(firstIpAdd%65536)/256);
+        var ipStart4 = Math.floor(Number(firstIpAdd%65536)%256);
+        this.formValidate.dhcpStart = ipStart1 +"."+ ipStart2 +"."+ ipStart3 +"."+ ipStart4;
+        var network1 = Math.floor(network/2);
+        var network2 = Number(network%2);
+        var lastIpAdd=Number(network2|((~maskaddr)%2))+Number(network1|((~maskaddr)/2))*2-1;
+        var netIp1 = (ipaddr&(~maskaddr))+1;
+        if((netIp1>129&&maskaddr==4294967040) || netIp1 == 129) {
+            lastIpAdd = network + netIp1 - 2;
+        }
+        if(lastIpAdd == ipaddr) lastIpAdd--;
+        var ipEnd1 = Math.floor(Number(lastIpAdd/16777216));
+        var ipEnd2 = Math.floor(Number(lastIpAdd%16777216)/65536);
+        var ipEnd3 = Math.floor(Number(lastIpAdd%65536)/256);
+        var ipEnd4 = Math.floor(Number(lastIpAdd%65536)%256);
+        this.formValidate.dhcpEnd = ipEnd1 +"."+ ipEnd2 +"."+ ipEnd3 +"."+ ipEnd4;
+    },
+    handleSubmit: function(name) {
+        var _this = this;
+        var _s = cs.ip(this.formValidate.lanIp);
+        if(_s == 0) {
+          this.$dialog.notify({mes:_this.$t('lan.ip')+_this.$t('lan.msg1')});
+          return false;
+        }else if(_s == 1){
+          this.$dialog.notify({mes:_this.$t('lan.ip')+_this.$t('lan.msg2')});
+          return false;
+        }else if(_s == 2){
+          this.$dialog.notify({mes:_this.$t('lan.ip')+_this.$t('lan.msg3')});
+          return false;
+        }else if(_s == 3){
+          this.$dialog.notify({mes:_this.$t('lan.ip')+_this.$t('lan.msg4')});
+          return false;
+        }else if(_s == 4){
+          this.$dialog.notify({mes:_this.$t('lan.ip')+_this.$t('lan.msg5')});
+          return false;
+        }
+        var _s = cs.mask(this.formValidate.lanNetmask);
+        if(_s == 0 || _s == 1) {
+          this.$dialog.notify({mes:_this.$t('lan.msg6')});
+          return false;
+        }
+        if (1 == this.formValidate.dhcp) {
+            var _s = cs.ip(this.formValidate.dhcpStart);
+            if(_s == 0) {
+              this.$dialog.notify({mes:_this.$t('lan.sip')+_this.$t('lan.msg1')});
+              return false;
+            }else if(_s == 1){
+              this.$dialog.notify({mes:_this.$t('lan.sip')+_this.$t('lan.msg2')});
+              return false;
+            }else if(_s == 2){
+              this.$dialog.notify({mes:_this.$t('lan.sip')+_this.$t('lan.msg3')});
+              return false;
+            }else if(_s == 3){
+              this.$dialog.notify({mes:_this.$t('lan.sip')+_this.$t('lan.msg4')});
+              return false;
+            }else if(_s == 4){
+              this.$dialog.notify({mes:_this.$t('lan.sip')+_this.$t('lan.msg5')});
+              return false;
+            }
+            var _s = cs.ip(this.formValidate.dhcpEnd);
+            if(_s == 0) {
+              this.$dialog.notify({mes:_this.$t('lan.eip')+_this.$t('lan.msg1')});
+              return false;
+            }else if(_s == 1){
+              this.$dialog.notify({mes:_this.$t('lan.eip')+_this.$t('lan.msg2')});
+              return false;
+            }else if(_s == 2){
+              this.$dialog.notify({mes:_this.$t('lan.eip')+_this.$t('lan.msg3')});
+              return false;
+            }else if(_s == 3){
+              this.$dialog.notify({mes:_this.$t('lan.eip')+_this.$t('lan.msg4')});
+              return false;
+            }else if(_s == 4){
+              this.$dialog.notify({mes:_this.$t('lan.eip')+_this.$t('lan.msg5')});
+              return false;
+            }
+            if(cs.ip_range(this.formValidate.dhcpStart,this.formValidate.dhcpEnd) == 0){
+                this.$dialog.notify({mes:_this.$t('lan.msg7')});
+                return false;
+            }
+            if(this.formValidate.dhcpStart == this.formValidate.lanIp || this.formValidate.dhcpEnd == this.formValidate.lanIp){
+                this.$dialog.notify({mes:_this.$t('lan.msg10')});
+                return false;
+            }
+            if(0 == cs.ip_subnet(this.formValidate.lanIp,this.formValidate.lanNetmask,this.formValidate.dhcpStart)){
+                this.$dialog.notify({mes:_this.$t('lan.msg12')});
+                return false;
+            }
+            if(0 == cs.ip_subnet(this.formValidate.lanIp,this.formValidate.lanNetmask,this.formValidate.dhcpEnd)){
+                this.$dialog.notify({mes:_this.$t('lan.msg13')});
+                return false;
+            }
+            if(1 == cs.ip_subnet(this.formValidate.lanIp,this.formValidate.lanNetmask,this.wanIp)){
+                this.$dialog.notify({mes:_this.$t('lan.msg14')});
+                return false;
+            }
+        }
+        var postVar = {};
+        postVar.lanIp      = _this.formValidate.lanIp;
+        postVar.lanNetmask = _this.formValidate.lanNetmask;
+        postVar.dhcpServer = _this.formValidate.dhcp?"1":"0";
+        postVar.dhcpStart  = _this.formValidate.dhcpStart;
+        postVar.dhcpEnd    = _this.formValidate.dhcpEnd;
+        uiPost.setLanConfig(postVar,function(data){
+          _this.$dialog.toast({
+              mes: _this.$t('changepwd.msg7'),
+              icon: 'success',
+              callback:function(){
+                location.href = location.href;
+              }
+          });
+        });
+    }
+  }
+};
+</script>
+<script src="/static/js/main.mobile.js"></script>
+</html>

@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title></title>
+  <link rel="stylesheet" href="/plugin/iview/styles/iview.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div id="app"></div>
+
+<script type="text/x-template" id="main">
+<Col class="cs-container" span="20" >
+    <slot name="breadcrumb"></slot>
+    <!-- 这个不能删除，用于面包屑显示 -->
+    <div class="cs-content">
+        <Row>
+          <Col :xs="globalConfig.xs" :sm="globalConfig.sm" :md="globalConfig.md" :lg="globalConfig.lg">
+            <Card>
+            <Alert>
+              <!-- <h3>设置</h3> -->
+              {{ $t('iptv_plus.help') }}
+            </Alert>
+            <Form ref="formValidate" :model="formValidate" :rules="ruleValidate" :label-width="globalConfig.labelWith" label-position="left">
+              <FormItem :label="$t('iptv_plus.title')">
+                  <i-switch v-model="formValidate.status" size="large">
+                      <span slot="open">{{ $t('common.enabled') }}</span>
+                      <span slot="close">{{ $t('common.disabled') }}</span>
+                  </i-switch>
+              </FormItem>
+              <Col v-show="formValidate.status" >
+                <FormItem :label="$t('iptv_plus.service_Type')">
+                  <div class="server"><Select v-model="formValidate.serviceType"  @on-change="lanvalChange" :key="$t('iptv_plus.service_Type')">
+                    <Option v-for="servicetype in serviceOption" :value="servicetype.value" :key="servicetype.value">{{servicetype.option}}</Option>
+                  </Select></div>
+                </FormItem>
+                <FormItem :label="$t('iptv_plus.lan1Type')">
+                  <Select v-model="formValidate.lan1Type" :key="$t('iptv_plus.lan1Type')" :disabled="formValidate.serviceType==1||formValidate.serviceType==2||formValidate.serviceType==3">
+                   <Option v-for="lan1TypeOption in lan1TypeOptions" :value="lan1TypeOption.value" :key="lan1TypeOption.value">{{lan1TypeOption.option}}</Option>
+                  </Select>
+                </FormItem>
+                <FormItem :label="$t('iptv_plus.lan2Type')">
+                  <Select v-model="formValidate.lan2Type" :key="$t('iptv_plus.lan2Type')" :disabled="formValidate.serviceType==1||formValidate.serviceType==2||formValidate.serviceType==3">
+                    <Option v-for="lan2TypeOption in lan2TypeOptions" :value="lan2TypeOption.value" :key="lan2TypeOption.value">{{lan2TypeOption.option}}</Option> 
+                  </Select>
+                </FormItem>
+                <FormItem :label="$t('iptv_plus.lan3Type')">
+                  <Select v-model="formValidate.lan3Type" :key="$t('iptv_plus.lan3Type')" :disabled="formValidate.serviceType==1||formValidate.serviceType==2||formValidate.serviceType==3">
+                    <Option v-for="lan3TypeOption in lan3TypeOptions" :value="lan3TypeOption.value" :key="lan3TypeOption.value">{{lan3TypeOption.option}}</Option>
+                  </Select>
+                </FormItem>
+                <FormItem :label="$t('iptv_plus.lan4Type')">
+                  <Select v-model="formValidate.lan4Type" :key="$t('iptv_plus.lan4Type')" :disabled="formValidate.serviceType==1||formValidate.serviceType==2||formValidate.serviceType==3">
+                   <Option v-for="lan4TypeOption in lan4TypeOptions" :value="lan4TypeOption.value" :key="lan4TypeOption.value">{{lan4TypeOption.option}}</Option> 
+                  </Select>
+                </FormItem>
+                <Col v-if="formValidate.serviceType == '0'" >
+                   <FormItem :label="$t('iptv_plus.iptvVid')" prop="iptvVid">
+                     <Input v-model="formValidate.iptvVid" :maxlength="4"></Input>
+                     <span>(1-4094)</span>
+                   </FormItem>
+                   <FormItem :label="$t('iptv_plus.iptvPri')">
+                     <Select v-model="formValidate.iptvPri">
+                         <Option v-for="iptvPri in iptvPriOption" :value="iptvPri.value" :key="iptvPri.value">{{iptvPri.option}}</Option>
+                     </Select>
+                   </FormItem>
+                  <FormItem :label="$t('iptv_plus.ipphoneVid')" prop="ipphoneVid">
+                     <Input v-model="formValidate.ipphoneVid" :maxlength="4"></Input>
+                     <span>(1-4094)</span>
+                   </FormItem>
+                   <FormItem :label="$t('iptv_plus.ipphonePri')">
+                     <Select v-model="formValidate.ipphonePri">
+                         <Option v-for="ipphonePri in ipphonePriOption" :value="ipphonePri.value" :key="ipphonePri.value">{{ipphonePri.option}}</Option>
+                     </Select>
+                   </FormItem>
+                   <FormItem :label="$t('iptv_plus.internetVid')" prop="internetVid">
+                     <Input v-model="formValidate.internetVid" :maxlength="4"></Input>
+                     <span>(1-4094)</span>
+                   </FormItem>
+                   <FormItem :label="$t('iptv_plus.internetPri')">
+                     <Select v-model="formValidate.internetPri">
+                         <Option v-for="internetPri in internetPriOption" :value="internetPri.value" :key="internetPri.value">{{internetPri.option}}</Option>
+                     </Select>
+                   </FormItem>
+                </Col>
+              </Col>
+              <FormItem>
+                <Button type="primary" @click="handleSubmit('formValidate')">{{ $t('iptv_plus.apply') }}</Button>
+              </FormItem>
+          </Form>
+          </Card>
+        </Col>
+      </Row>
+    </div>
+    <slot name="footer"></slot>
+</Col>
+</script>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/iview/iview.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/layout.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+var cs_main = {
+  template:"#main",
+  data:function(){
+    return {
+      globalConfig:globalConfig,
+      formValidate: {
+          status:true,
+          iptvEnabled:'',
+          serviceType:'',
+          lan1Type:'',
+          lan2Type:'',
+          lan3Type:'',
+          lan4Type:'',
+          iptvVid:'',
+          iptvPri:'',
+          ipphoneVid:'',
+          ipphonePri:'',
+          internetVid:'',
+          internetPri:''
+      },
+    }
+  },
+  computed: {
+    ruleValidate: function(){
+      var _this = this;
+      return {
+        iptvVid: [
+              { validator:function(r, v, f) {
+                var _s = cs.num_range(v,1,4094);
+                if(0 == _s) {
+                  f(_this.$t('iptv_plus.msg1'));
+                }else if(1 == _s) {
+                  f(_this.$t('iptv_plus.msg2'));
+                }else if(2 == _s) {
+                  f(_this.$t('iptv_plus.msg_rang',[1,4094]));
+                }else{
+                  f();
+                }
+              },trigger: 'blur' }
+        ],
+        ipphoneVid: [
+              { validator:function(r, v, f) {
+                var _s = cs.num_range(v,1,4094);
+                if(0 == _s) {
+                  f(_this.$t('iptv_plus.msg1'));
+                }else if(1 == _s) {
+                  f(_this.$t('iptv_plus.msg2'));
+                }else if(2 == _s) {
+                  f(_this.$t('iptv_plus.msg_rang',[1,4094]));
+                }else{
+                  f();
+                }
+              },trigger: 'blur' }
+        ],
+        internetVid: [
+              { validator:function(r, v, f) {
+                var _s = cs.num_range(v,1,4094);
+                if(0 == _s) {
+                  f(_this.$t('iptv_plus.msg1'));
+                }else if(1 == _s) {
+                  f(_this.$t('iptv_plus.msg2'));
+                }else if(2 == _s) {
+                  f(_this.$t('iptv_plus.msg_rang',[1,4094]));
+                }else{
+                  f();
+                }
+              },trigger: 'blur' }
+        ],
+  
+      }
+    },
+    serviceOption:function(){
+      var _this = this;
+      return [
+        {
+          option: _this.$t('iptv_plus.user_define'),
+          value: '0'
+        },{
+          option: _this.$t('iptv_plus.singapore_exStream'),
+          value: '1'
+        },{
+          option: _this.$t('iptv_plus.malaysia_unifi'),
+          value: '2'
+        },{
+          option: _this.$t('iptv_plus.malaysia_maxis'),
+          value: '3'
+        },{
+          option: _this.$t('iptv_plus.Bridge'),
+          value: '4'
+        }
+      ];
+    },
+    iptvPriOption:function(){
+      var _this = this;
+      return [
+        {
+          option:'0',
+          value: '0'
+        },{
+          option:'1',
+          value: '1'
+        },{
+          option:'2',
+          value: '2'
+        },{
+          option:'3',
+          value: '3'
+        },{
+          option:'4',
+          value: '4'
+        },{
+          option:'5',
+          value: '5'
+        },{
+          option:'6',
+          value: '6'
+        },{
+          option:'7',
+          value: '7'
+        }
+      ];
+    },
+    ipphonePriOption:function(){
+      var _this = this;
+      return [
+        {
+          option:'0',
+          value: '0'
+        },{
+          option:'1',
+          value: '1'
+        },{
+          option:'2',
+          value: '2'
+        },{
+          option:'3',
+          value: '3'
+        },{
+          option:'4',
+          value: '4'
+        },{
+          option:'5',
+          value: '5'
+        },{
+          option:'6',
+          value: '6'
+        },{
+          option:'7',
+          value: '7'
+        }
+      ];
+    },
+    internetPriOption:function(){
+      var _this = this;
+      return [
+        {
+          option:'0',
+          value: '0'
+        },{
+          option:'1',
+          value: '1'
+        },{
+          option:'2',
+          value: '2'
+        },{
+          option:'3',
+          value: '3'
+        },{
+          option:'4',
+          value: '4'
+        },{
+          option:'5',
+          value: '5'
+        },{
+          option:'6',
+          value: '6'
+        },{
+          option:'7',
+          value: '7'
+        }
+      ];
+    },
+    lan1TypeOptions:function(){
+      return [
+        {
+          option:'IPTV',
+          value: "1"
+        },{
+          option:'IP-Phone',
+          value: "2"
+        },{
+          option:'Internet',
+          value: "3"
+        }
+      ];
+    },
+    lan2TypeOptions:function(){
+      return [
+        {
+          option:'IPTV',
+          value: "1"
+        },{
+          option:'IP-Phone',
+          value: "2"
+        },{
+          option:'Internet',
+          value: "3"
+        }
+      ];
+    },
+    lan3TypeOptions:function(){
+      return [
+        {
+          option:'IPTV',
+          value: "1"
+        },{
+          option:'IP-Phone',
+          value: "2"
+        },{
+          option:'Internet',
+          value: "3"
+        }
+      ];
+    },
+    lan4TypeOptions:function(){
+      return [
+        {
+          option:'IPTV',
+          value: "1"
+        },{
+          option:'IP-Phone',
+          value: "2"
+        },{
+          option:'Internet',
+          value: "3"
+        }
+      ];
+    }
+  },
+  created:function() {
+  var _this = this;
+  var postVar = {};
+  var location = window.location.href;
+    uiPost.getIptvConfig(postVar,function(data) {
+    _this.formValidate.status     = data.iptvEnabled == 1 ? true : false;
+    _this.formValidate.serviceType  = data.serviceType;
+    _this.formValidate.lan1Type        = data.lan1Type;
+    _this.formValidate.lan2Type= data.lan2Type;
+    _this.formValidate.lan3Type       = data.lan3Type;
+    _this.formValidate.lan4Type    = data.lan4Type;
+    _this.formValidate.iptvVid     = data.iptvVid;
+    _this.formValidate.iptvPri     = data.iptvPri;
+    _this.formValidate.ipphoneVid  = data.ipphoneVid;
+    _this.formValidate.ipphonePri  = data.ipphonePri;
+    _this.formValidate.internetVid = data.internetVid;
+    _this.formValidate.internetPri  = data.internetPri;
+    });
+  },
+  methods:{
+    handleSubmit: function(name){
+        var _this = this;
+        if(_this.formValidate.serviceType=="0"){
+          _this.$refs[name].validate(function(valid){
+          if (valid) {
+            var postVar = {};
+            postVar.iptvEnabled   = _this.formValidate.status == true ? "1" : "0";
+            postVar.addEffect  = "0";
+            postVar.serviceType   = _this.formValidate.serviceType;
+            if(_this.formValidate.serviceType == 0||_this.formValidate.serviceType == 4){
+              postVar.lan1Type      = _this.formValidate.lan1Type;
+              postVar.lan2Type      = _this.formValidate.lan2Type;
+              postVar.lan3Type      = _this.formValidate.lan3Type;
+              postVar.lan4Type      = _this.formValidate.lan4Type;
+            }
+            if(_this.formValidate.serviceType == 4){
+              postVar.iptvVid      = _this.formValidate.iptvVid;
+              postVar.iptvPri      = _this.formValidate.iptvPri;
+              postVar.ipphoneVid  = _this.formValidate.ipphoneVid;
+              postVar.ipphonePri      = _this.formValidate.ipphonePri
+              postVar.internetVid      = _this.formValidate.internetVid;
+              postVar.internetPri= _this.formValidate.internetPri;
+            }
+            uiPost.setIptvConfig(postVar,function(data){
+                location.href = location.href;
+                });
+          } 
+        })
+      }else{
+        var postVar = {};
+        postVar.iptvEnabled   = _this.formValidate.status == true ? "1" : "0";
+        postVar.serviceType   = _this.formValidate.serviceType;
+        if(_this.formValidate.serviceType == 0||_this.formValidate.serviceType == 4){
+          postVar.lan1Type      = _this.formValidate.lan1Type;
+          postVar.lan2Type      = _this.formValidate.lan2Type;
+          postVar.lan3Type      = _this.formValidate.lan3Type;
+          postVar.lan4Type      = _this.formValidate.lan4Type;
+        }
+        if(_this.formValidate.serviceType == 4){
+          postVar.iptvVid      = _this.formValidate.iptvVid;
+          postVar.iptvPri      = _this.formValidate.iptvPri;
+          postVar.ipphoneVid  = _this.formValidate.ipphoneVid;
+          postVar.ipphonePri      = _this.formValidate.ipphonePri
+          postVar.internetVid      = _this.formValidate.internetVid;
+          postVar.internetPri= _this.formValidate.internetPri;
+        }
+        uiPost.setIptvConfig(postVar,function(data){
+            location.href = location.href;
+            });
+      }
+    },
+    lanvalChange:function(){
+      var _this = this;
+      if (this.formValidate.serviceType=="1"||this.formValidate.serviceType=="2"){
+        _this.formValidate.lan1Type = '2'; 
+        _this.formValidate.lan2Type = '3';
+        _this.formValidate.lan3Type = '3';
+        _this.formValidate.lan4Type = '3';
+      }
+      if(this.formValidate.serviceType=="3"){
+        this.formValidate.lan1Type = '1';
+        this.formValidate.lan2Type = '2';
+        this.formValidate.lan3Type = '3';
+        this.formValidate.lan4Type = '3';
+      }
+    }
+  }
+};
+</script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>

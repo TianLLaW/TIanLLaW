@@ -1,0 +1,16 @@
+{	
+	"wifiIdx":"0",
+    "ssid2":"1111111111",
+    "ssid3":"2222222222222",
+    "wifiOff":"0",
+    "wifiOff2":"0",
+    "wifiOff3":"0",
+    "authMode":"NONE;WPAPSKWPA2PSK",
+    "encrypType":"NONE;TKIPAES",
+    "hssid":"1;0",
+    "key2":"",
+    "key3":"12345678",
+    "keyFormat":"1;0",
+	"bssidNum":"2"
+
+}

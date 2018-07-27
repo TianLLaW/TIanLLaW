@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title></title>
+  <link rel="stylesheet" href="/plugin/iview/styles/iview.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    .showlist{
+      padding: 3px 0;
+    }
+  </style>
+</head>
+<body>
+<div id="app"></div>
+
+<script type="text/x-template" id="main">
+<Col class="cs-container" span="20" >
+    <slot name="breadcrumb" :breadcrumb="[$t('menu.qos'),$t('menu.qospolicy')]"></slot>
+    <!-- 这个不能删除，用于面包屑显示 -->
+    <div class="cs-content">
+        <row>
+          <Col :xs="globalConfig.xs" :sm="globalConfig.sm" :md="globalConfig.md" :lg="globalConfig.lg">
+            <Card>
+            <Col>
+                <!-- <Alert>
+                  {{ $t('qospolicy.help') }}
+                </Alert> -->
+                <h2>{{ $t('qospolicy.title') }}</h2>
+                <hr>
+                <br>
+            </Col>
+            <Form ref="formValidate" :model="formValidate" :label-width="globalConfig.labelWith" label-position="left">
+              <FormItem :label="'HTTP'+$t('qospolicy.net')">
+                <RadioGroup v-model="formValidate.http" type="button">
+                  <Radio v-for="(n,i) in levels" :key='i' :label="i+''" >{{ n }}</Radio>
+                </RadioGroup>
+              </FormItem>
+              <FormItem :label="'HTTP'+$t('qospolicy.download')">
+                <RadioGroup v-model="formValidate.http_download" type="button">
+                  <Radio v-for="(n,i) in levels" :key='i' :label="i+''" >{{ n }}</Radio>
+                </RadioGroup>
+              </FormItem>
+              <FormItem :label="'HTTPS'+$t('qospolicy.net')">
+                <RadioGroup v-model="formValidate.https" type="button">
+                  <Radio v-for="(n,i) in levels" :key='i' :label="i+''" >{{ n }}</Radio>
+                </RadioGroup>
+                <!--<Button @click="showHttpsList">{{ $t('qospolicy.view') }}</Button>-->
+              </FormItem>
+              <!--<FormItem label="QQ">
+                <RadioGroup v-model="formValidate.qq" type="button">
+                  <Radio v-for="(n,i) in levels" :key='i' :label="i+''" >{{ n }}</Radio>
+                </RadioGroup>
+              </FormItem>-->
+              <FormItem :label="$t('qospolicy.small_packet')">
+                <RadioGroup v-model="formValidate.small_packet" type="button">
+                  <Radio v-for="(n,i) in levels" :key='i' :label="i+''" >{{ n }}</Radio>
+                </RadioGroup>
+              </FormItem>
+              <FormItem :label="'P2P'+$t('qospolicy.download')">
+                <RadioGroup v-model="formValidate.p2p" type="button">
+                  <Radio v-for="(n,i) in levels" :key='i' :label="i+''" >{{ n }}</Radio>
+                </RadioGroup>
+              </FormItem>
+              <FormItem :label="$t('qospolicy.other')">
+                <RadioGroup v-model="formValidate.other" type="button">
+                  <Radio v-for="(n,i) in levels" :key='i' :label="i+''" >{{ n }}</Radio>
+                </RadioGroup>
+              </FormItem>
+              <FormItem >
+                <Button type="primary" @click="handleSubmit('formValidate')">{{ $t('common.apply') }}</Button>
+              </FormItem>
+            </Form>
+            </Card>
+            <br>
+        </Col>
+        </row>
+    </div>
+    <Modal
+        v-model="showModel"
+        :title="'HTTPS'+$t('qospolicy.modal_title')"
+        :ok-text="$t('common.ok')"
+        :cancel-text="$t('common.cancel')">
+        <Row class="showlist">
+          <Col v-for="(v,i) in formValidate.https.list" :key="i">{{ (i+1)+' : '+v.url }}</Col>
+        </Row>
+    </Modal>
+    <!-- 这个不能删除，用于底部显示 -->
+    <slot name="footer"></slot>
+</Col>
+</script>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/iview/iview.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/layout.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+var cs_main = {
+  template:"#main",
+  data:function(){
+    var _this = this;
+    return {
+      globalConfig:globalConfig,
+      showModel:false,
+      formValidate: {
+        https:{
+          level:"0"
+        }
+      }
+    }
+  },
+  computed:{
+    levels:function() {
+      return [
+        this.$t('qospolicy.L0'),
+        this.$t('qospolicy.L1'),
+        this.$t('qospolicy.L2'),
+        this.$t('qospolicy.L3'),
+        this.$t('qospolicy.L4')
+      ];
+    }
+  },
+  created:function() {
+    var _this = this;
+    uiPost.getQosPolicy(function(data) {
+      _this.formValidate = data;
+    });
+  },
+  methods:{
+    handleSubmit:function(){
+      var _this = this;
+      uiPost.setQosPolicy(this.formValidate,function(){
+        _this.$Message.success(_this.$t('qospolicy.msg'));
+      });
+    },
+    showHttpsList:function(){
+      this.showModel = true;
+    }
+  }
+};
+</script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>

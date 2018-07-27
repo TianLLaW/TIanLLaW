@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+  <title></title>
+  <link rel="stylesheet" href="/plugin/ydui/ydui.rem.css">
+  <link rel="stylesheet" href="/static/css/style.mobile.css">
+</head>
+<body>
+<div id="app"></div>
+<script type="text/x-template" id="main">
+<div class="main">
+<yd-grids-group :rows="3">
+    <yd-grids-item type="a" :href="globalConfig.m.url+'adm/changepwd.html'">
+        <Icon slot="icon" type="locked"></Icon>
+        <span slot="text">{{ $t('menu.changepwd') }}</span>
+    </yd-grids-item>
+	    <yd-grids-item type="a" :href="globalConfig.m.url+'adm/lan.html'">
+        <Icon slot="icon" type="ios-world"></Icon>
+        <span slot="text">{{ $t('menu.lan') }}</span>
+    </yd-grids-item>
+    <yd-grids-item type="a" :href="globalConfig.m.url+'adm/schedule.html'">
+        <Icon slot="icon" type="ios-refresh"></Icon>
+        <span slot="text">{{ $t('menu.schedule') }}</span>
+    </yd-grids-item>
+    <yd-grids-item type="a" href="javascript:;" @click.native="rebootOk">
+        <Icon slot="icon" type="power"></Icon>
+        <span slot="text">{{ $t('config.reboot_system') }}</span>
+    </yd-grids-item>
+</yd-grids-group>
+<!-- 不能删除 -->
+<br>
+<slot name="footer"></slot>
+</div>
+</script>
+</body>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/ydui/ydui.rem.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+var cs_main = {
+  template:"#main",
+  data:function(){
+    var _this = this;
+    return {
+      globalConfig:globalConfig,
+      menu:mobileMenu,
+      selected:'status',
+      popupVisible:true
+    }
+  },
+  computed:{
+    
+  },
+  created:function(){
+      globalConfig.iHeader = this.$t('menu.advanced');
+      localStorage.setItem('cs_mobile_menu', 'advanced');
+  },
+  methods:{
+    handleClick: function () {
+        this.$dialog.alert({mes: 'Hello World!'});
+    },
+    rebootOk:function(){
+      var _this = this;
+      this.$dialog.confirm({
+          title: _this.$t('common.notice'),
+          mes: _this.$t('config.msg5'),
+          opts: [
+              {
+                  txt:  _this.$t('common.cancel'),
+                  color: false
+              },
+              {
+                  txt: _this.$t('common.confirm'),
+                  color: true,
+                  callback: function() {
+                    uiPost.RebootSystem();
+                    _this.$dialog.loading.open(_this.$t('config.reboot_msg'));
+                    setTimeout(function() {
+                        _this.$dialog.loading.close();
+                        location.href = location.href;
+                    }, 120000);
+                  }
+              }
+          ]
+      });
+     
+    }
+  }
+};
+</script>
+<script src="/static/js/main.mobile.js"></script>
+</html>

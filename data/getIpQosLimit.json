@@ -1,0 +1,25 @@
+[
+    {
+        "lanIp":"192.168.0.1",
+        "lanNetmask":"255.255.255.0",
+        "enable":"1"
+    },
+    {
+        "idx":"1",
+        "ipStart":"192.168.0.100",
+        "ipEnd":"192.168.0.200",
+        "upBandwidth":"100000",
+        "dwBandwidth":"100000",
+        "comment":"",
+        "delRuleName":"delRule0"
+    },
+    {
+        "idx":"2",
+        "ipStart":"192.168.0.220",
+        "ipEnd":"192.168.0.230",
+        "upBandwidth":"11111",
+        "dwBandwidth":"22222",
+        "comment":"",
+        "delRuleName":"delRule1"
+    }
+]

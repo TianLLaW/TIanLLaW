@@ -1,0 +1,39 @@
+[
+	{
+		"idx":	"0",
+		"username":	"123",
+		"password":	"123",
+		"authenticate":	"0",
+		"upbandwidth":	"12500",
+		"downbandwidth":	"12500",
+		"comment":	"12333"
+	}, {
+		"idx":	"1",
+		"username":	"1234",
+		"password":	"1234",
+		"authenticate":	"1",
+		"upbandwidth":	"12500",
+		"downbandwidth":	"12500",
+		"comment":	"12333"
+	}, {
+		"idx":	"3",
+		"username":	"openvpn",
+		"password":	"openvpn",
+		"authenticate":	"4",
+		"upbandwidth":	"12500",
+		"downbandwidth":	"12500",
+		"comment":	"12333"
+	}, {
+		"idx":	"4",
+		"username":	"55555",
+		"password":	"343434",
+		"authenticate":	"4",
+		"upbandwidth":	"12121",
+		"downbandwidth":	"12122",
+		"comment":	"12333"
+	},
+	{
+		"upband":	"125000",
+		"downband":	"125000"
+}
+]

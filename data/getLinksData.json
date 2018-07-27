@@ -1,0 +1,24 @@
+{
+  "connections": [
+    {
+      "protocol": "TCP",
+      "src": "192.168.10.18",
+      "count_download": "11",
+      "count_upload": "10",
+      "download": "123",
+      "upload": "150"
+    },
+    {
+      "protocol": "TCP",
+      "src": "192.168.10.18",
+      "count_download": "11",
+      "count_upload": "10",
+      "download": "123",
+      "upload": "150"
+    }
+  ],
+  "statistics": {
+    "tcp": "45",
+    "udp": "46"
+  }
+}

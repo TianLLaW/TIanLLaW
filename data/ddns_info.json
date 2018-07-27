@@ -1,0 +1,7 @@
+{
+  "ddnsEnabled":	1,
+  "ddnsProvider":	"3322.org",
+  "ddnsDomain":	"host.dyndns.org",
+  "ddnsAccount":	"admin",
+  "ddnsPassword":	"admin"
+}

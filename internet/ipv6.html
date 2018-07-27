@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title></title>
+  <link rel="stylesheet" href="/plugin/iview/styles/iview.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div id="app"></div>
+
+<script type="text/x-template" id="main">
+<Col class="cs-container" span="20" >
+    <slot name="breadcrumb"></slot>
+    <!-- 这个不能删除，用于面包屑显示 -->
+    <div class="cs-content">
+        <Row>
+          <Col :xs="globalConfig.xs" :sm="globalConfig.sm" :md="globalConfig.md" :lg="globalConfig.lg">
+            <Card>
+            <Alert>
+              <!-- <h3>设置</h3> -->
+               {{ $t('ipv6.help') }} 
+            </Alert>
+            <Form ref="formValidate" :model="formValidate" :rules="ruleValidate" :label-width="globalConfig.labelWith" label-position="left">
+              <h3>IPv6 WAN</h3>
+              <FormItem :label="$t('ipv6.state')">
+                  <i-switch v-model="formValidate.status" size="large">
+                      <span slot="open">{{ $t('common.enabled') }}</span>
+                      <span slot="close">{{ $t('common.disabled') }}</span>
+                  </i-switch>
+              </FormItem>
+              <Col v-show="formValidate.status" >
+                <FormItem :label="$t('ipv6.connect_type')">
+                    <RadioGroup v-model="formValidate.connectionType" type="button" @on-change="changeConnMode">
+                        <Radio label="0">{{ $t('ipv6.static_ip') }}</Radio>
+                        <Radio label="1">PPPoE</Radio>
+                        <Radio label="2">{{ $t('ipv6.dynamic_ip') }}</Radio>
+                      </template>
+                   </RadioGroup>
+                </FormItem>
+                <Col v-show="formValidate.connectionType == 0">
+                    <FormItem :label="$t('ipv6.ipv6_ip')" prop="staticIPv6">
+                        <Input v-model="formValidate.staticIPv6" :maxlength="48"></Input>
+                    </FormItem>
+                    <FormItem :label="$t('ipv6.prefix_len')" prop="staticIpPrefixLen">
+                        <Input v-model="formValidate.staticIpPrefixLen" :maxlength="10"></Input>
+                    </FormItem>
+                    <FormItem :label="$t('ipv6.gateway')" prop="staticGw">
+                        <Input v-model="formValidate.staticGw" :maxlength="48"></Input>
+                    </FormItem>
+                    <FormItem :label="$t('ipv6.pri_dns')" prop="staticPriDns">
+                        <Input v-model="formValidate.staticPriDns" :maxlength="48"></Input>
+                    </FormItem>
+                    <FormItem :label="$t('ipv6.sec_dns')" prop="staticSecDns">
+                        <Input v-model="formValidate.staticSecDns" :maxlength="48"></Input>
+                    </FormItem>
+                    <FormItem label="MTU" prop="staticMtu">
+                        <Input v-model="formValidate.staticMtu" :maxlength="4"></Input>
+                        <span>(1400-1500)</span>
+                    </FormItem>
+                </Col>
+                <Col v-show="formValidate.connectionType == 1">
+                    <FormItem :label="$t('ipv6.user')" prop="pppoeUser">
+                        <Input v-model="formValidate.pppoeUser" :maxlength="32"></Input>
+                    </FormItem>
+                    <FormItem :label="$t('ipv6.pass')" prop="pppoePass">
+                        <Input v-model="formValidate.pppoePass" :type="pwdType" @on-focus="pwdFocus" @on-blur="pwdBlur" :maxlength="32"></Input>
+                    </FormItem>
+                    <FormItem :label="$t('ipv6.dns_server')">
+                      <RadioGroup v-model="formValidate.pppoeDnsMode">
+                        <Radio label="1">{{ $t('ipv6.dns_type1') }}</Radio>
+                        <Radio label="0">{{ $t('ipv6.dns_type2') }}</Radio>
+                      </RadioGroup>
+                    </FormItem>
+                    <Col v-show="formValidate.pppoeDnsMode == 0">
+                        <FormItem :label="$t('wan.pri_dns')" prop="pppoePriDns">
+                            <Input v-model="formValidate.pppoePriDns" :maxlength="48"></Input>
+                        </FormItem>
+                        <FormItem :label="$t('wan.sec_dns')" prop="pppoeSecDns">
+                            <Input v-model="formValidate.pppoeSecDns" :maxlength="48"></Input>
+                        </FormItem>
+                    </Col>
+                    <FormItem label="MTU" prop="pppoeMtu">
+                        <Input v-model="formValidate.pppoeMtu" :maxlength="4"></Input>
+                        <span>(1360-1492)</span>
+                    </FormItem>
+                </Col>
+                <Col v-show="formValidate.connectionType == 2">
+                    <FormItem :label="$t('ipv6.dns_server')">
+                      <RadioGroup v-model="formValidate.dnsMode">
+                        <Radio label="1">{{ $t('ipv6.dns_type1') }}</Radio>
+                        <Radio label="0">{{ $t('ipv6.dns_type2') }}</Radio>
+                      </RadioGroup>
+                    </FormItem>
+                    <Col v-show="formValidate.dnsMode == 0">
+                        <FormItem :label="$t('ipv6.pri_dns')" prop="dhcpPriDns">
+                            <Input v-model="formValidate.dhcpPriDns" :maxlength="48"></Input>
+                        </FormItem>
+                        <FormItem :label="$t('ipv6.sec_dns')" prop="dhcpSecDns">
+                            <Input v-model="formValidate.dhcpSecDns" :maxlength="48"></Input>
+                        </FormItem>
+                    </Col>
+                    <FormItem label="MTU" prop="dhcpMtu">
+                        <Input v-model="formValidate.dhcpMtu" :maxlength="4"></Input>
+                        <span>(1400-1500)</span>
+                    </FormItem>
+                </Col>
+                <h3>IPv6 LAN</h3>
+                <FormItem :label="$t('ipv6.addr_type')">
+                    <span>SLAAC+DHCPv6</span>
+                </FormItem>
+                <FormItem :label="$t('ipv6.prefix_type')">
+                  <RadioGroup v-model="formValidate.lanIpPrefixType">
+                    <Radio label="0">{{ $t('ipv6.prefix_type1') }}</Radio>
+                    <Radio label="1">{{ $t('ipv6.prefix_type2') }}</Radio>
+                  </RadioGroup>
+                </FormItem>
+                <Col v-show="formValidate.lanIpPrefixType == 1">
+                    <FormItem :label="$t('ipv6.address_prefix')" prop="lanIpPrefix">
+                        <Col span="20">
+                           <Input v-model="formValidate.lanIpPrefix" :maxlength="48"></Input>
+                        </Col>
+                        <span>/64</span>
+                    </FormItem>
+                </Col>
+              </Col>
+              <FormItem>
+                  <Button type="primary" @click="handleSubmit('formValidate')">{{ $t('ipv6.apply') }}</Button>
+              </FormItem>
+          </Form>
+          </Card>
+        </Col>
+      </Row>
+    </div>
+    <slot name="footer"></slot>
+</Col>
+</script>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/iview/iview.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/layout.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+var cs_main = {
+  template:"#main",
+  data:function(){
+    return {
+      globalConfig:globalConfig,
+      formValidate: {
+          status:false,
+          connectionType:'0',
+          pppoeUser:'',
+          pppoePass:'',
+          pppoeDnsMode: '1',
+          pppoePriDns:'',
+          pppoeSecDns:'',
+          pppoeMtu:'1492',
+          staticIPv6:'',
+          staticIpPrefixLen:'64',
+          staticGw:'',
+          staticPriDns:'',
+          staticSecDns:'',
+          staticMtu:'1500',
+          dnsMode: '1',
+          dhcpPriDns:'',
+          dhcpSecDns:'',
+          dhcpMtu:'1500',
+          lanIpPrefixType: "0",
+          lanIpPrefix:''
+      },
+      lanIpPrefixType:'',
+      lanIpPrefixLen:'',
+      lanIpMode:'',
+      connMode:'',
+      pppoeDnsMode:'1',
+      dnsMode: '1',
+      pwdType:'password',
+      percent:0
+    }
+  },
+  computed: {
+    ruleValidate: function(){
+      var _this = this;
+      _this.$t('ipv6.user'); // 不能删除,校验错误提示切换语言不能够同步，暂时没有想到解决方法
+      return {
+          pppoeUser: [
+            { validator:function(r, v, f) {
+                if(_this.formValidate.connectionType == 1){
+                   if(v.length == 0){
+                     f(_this.$t('ipv6.user')+_this.$t('ipv6.msg1'));
+                   }else{
+                    f();
+                   }
+                }
+                f();
+            },trigger: 'blur' }
+          ],
+          pppoePass: [
+             { validator:function(r, v, f) {
+                if(_this.formValidate.connectionType == 1){
+                   if(v.length == 0){
+                     f(_this.$t('ipv6.pass')+_this.$t('ipv6.msg1'));
+                   }else{
+                    f();
+                   }
+                }
+                f();
+            },trigger: 'blur' }
+          ],
+          pppoePriDns: [
+            { validator:function(r, v, f) {
+                if(_this.formValidate.connectionType == 1 && _this.formValidate.pppoeMode == 0){
+                   var _s = cs.isIpv6(v);
+                   if(v.length == 0){
+                     f(_this.$t('ipv6.pri_dns')+_this.$t('ipv6.msg1'));
+                   }else if(0 == _s) {
+                      f(_this.$t('ipv6.pri_dns')+_this.$t('ipv6.msg2'));
+                    }else{
+                      f();
+                    }  
+                }
+                f();
+            },trigger: 'blur' }
+          ],
+          pppoeSecDns: [
+            { validator:function(r, v, f) {
+                if(_this.formValidate.connectionType == 1 && _this.formValidate.pppoeMode == 0){
+                    var _s = cs.isIpv6(v);
+                    if(_this.formValidate.pppoeSecDns != ""){
+                        if(0 == _s) {
+                          f(_this.$t('ipv6.sec_dns')+_this.$t('ipv6.msg2'));
+                        }else{
+                          f();
+                        }
+                    }
+                }
+                f();
+            },trigger: 'blur' }
+          ],
+          pppoeMtu: [
+            { validator:function(r, v, f) {
+                if(_this.formValidate.connectionType == 1){
+                  var _s = cs.num_range(v,1360,1492);
+                  if(0 == _s) {
+                    f("MTU"+_this.$t('ipv6.msg1'));
+                  }else if(1 == _s) {
+                    f("MTU"+_this.$t('ipv6.msg3'));
+                  }else if(2 == _s) {
+                    f(_this.$t('ipv6.msg4',[1360,1492]));
+                  }else{
+                    f();
+                  }
+              }
+              f();
+            },trigger: 'blur' }
+          ],
+          staticIPv6: [
+              { validator:function(r, v, f) {
+                if(_this.formValidate.connectionType == 0){
+                    var _s = cs.isIpv6(v);
+                    if(0 == _s) {
+                      f(_this.$t('ipv6.ipv6_ip')+_this.$t('ipv6.msg2'));
+                    }else{
+                      f();
+                    }
+                }
+                f();
+              },trigger: 'blur' }
+          ],
+          staticGw: [
+              { validator:function(r, v, f) {
+                if(_this.formValidate.connectionType == 0){
+                    var _s = cs.isIpv6(v);
+                    if(0 == _s) {
+                      f(_this.$t('ipv6.gateway')+_this.$t('ipv6.msg2'));
+                    }else{
+                      f();
+                    }
+                }
+                f();
+              },trigger: 'blur' }
+          ],
+          staticPriDns: [
+            { validator:function(r, v, f) {
+                if(_this.formValidate.connectionType == 0){
+                    var _s = cs.isIpv6(v);
+                    if(0 == _s) {
+                      f(_this.$t('ipv6.sec_dns')+_this.$t('ipv6.msg2'));
+                    }else{
+                      f();
+                    }
+                }
+                f();
+            },trigger: 'blur' }
+          ],
+          staticSecDns: [
+            { validator:function(r, v, f) {
+                if(_this.formValidate.connectionType == 0){
+                    var _s = cs.isIpv6(v);
+                    if(_this.formValidate.staticSecDns != ""){
+                        if(0 == _s) {
+                          f(_this.$t('ipv6.pri_dns')+_this.$t('ipv6.msg2'));
+                        }else{
+                          f();
+                        }
+                    }
+                    f();
+                }
+                f();
+            },trigger: 'blur' }
+          ],
+          staticMtu: [
+            { validator:function(r, v, f) {
+                if(_this.formValidate.connectionType == 0){
+                  var _s = cs.num_range(v,1400,1500);
+                  if(0 == _s) {
+                    f("MTU"+_this.$t('ipv6.msg1'));
+                  }else if(1 == _s) {
+                    f("MTU"+_this.$t('ipv6.msg3'));
+                  }else if(2 == _s) {
+                    f(_this.$t('ipv6.msg4',[1400,1500]));
+                  }else{
+                    f();
+                  }
+                }
+                f();
+            },trigger: 'blur' }
+          ],
+          staticIpPrefixLen: [
+            { validator:function(r, v, f) {
+                if(_this.formValidate.connectionType == 0){
+                  var _s = cs.num(v);
+                  if(0 == _s) {
+                    f(_this.$t('ipv6.prefix_len')+_this.$t('ipv6.msg1'));
+                  }else if(1 == _s) {
+                    f(_this.$t('ipv6.prefix_len')+_this.$t('ipv6.msg3'));
+                  }else{
+                    f();
+                  }
+                }
+                f();
+            },trigger: 'blur' }
+          ],
+          dhcpPriDns: [
+            { validator:function(r, v, f) {
+                if(_this.formValidate.connectionType == 2 && _this.formValidate.dnsMode == 0){
+                    var _s = cs.isIpv6(v);
+                    if(0 == _s) {
+                      f(_this.$t('ipv6.pri_dns')+_this.$t('ipv6.msg2'));
+                    }else{
+                      f();
+                    }
+                }
+                f();
+            },trigger: 'blur' }
+          ],
+          dhcpSecDns: [
+            { validator:function(r, v, f) {
+                if(_this.formValidate.connectionType == 2 && _this.formValidate.dnsMode == 0){
+                    var _s = cs.isIpv6(v);
+                    if(_this.formValidate.dhcpSecDns != ""){
+                        if(0 == _s) {
+                          f(_this.$t('ipv6.sec_dns')+_this.$t('ipv6.msg2'));
+                        }else{
+                          f();
+                        }
+                    }
+                    f();
+                }
+                f();
+            },trigger: 'blur' }
+          ],
+          dhcpMtu: [
+            { validator:function(r, v, f) {
+                if(_this.formValidate.connectionType == 2){
+                  var _s = cs.num_range(v,1400,1500);
+                  if(0 == _s) {
+                    f("MTU"+_this.$t('ipv6.msg1'));
+                  }else if(1 == _s) {
+                    f("MTU"+_this.$t('ipv6.msg3'));
+                  }else if(2 == _s) {
+                    f(_this.$t('ipv6.msg4',[1400,1500]));
+                  }else{
+                    f();
+                  }
+                }
+                f();
+            },trigger: 'blur' }
+          ],
+          lanIpPrefix: [
+            { validator:function(r, v, f) {
+                if(_this.formValidate.lanIpPrefixType == 1){
+                    var _s = cs.isIpv6(v);
+                    if(0 == _s) {
+                      f(_this.$t('ipv6.address_prefix')+_this.$t('ipv6.msg2'));
+                    }else{
+                      f();
+                    }
+                }
+                f();
+            },trigger: 'blur' }
+          ]
+        }   
+    }
+  },
+  created:function() {
+    var _this = this;
+    uiPost.getIPv6Config(function(data) {
+        _this.formValidate.status = data.enabled == "1" ? true : false;
+        _this.formValidate.connectionType = data.connMode;
+        _this.connMode = data.connMode;
+        _this.formValidate.staticIPv6 = data.staticIp;
+        _this.formValidate.staticGw = data.staticGw;
+        _this.formValidate.staticPriDns = data.staticPriDns;
+        _this.formValidate.staticSecDns = data.staticSecDns;
+        _this.formValidate.staticMtu = data.staticMtu;
+        _this.formValidate.staticIpPrefixLen = data.staticIpPrefixLen;
+        _this.formValidate.pppoeDnsMode = data.autoDns;
+        _this.formValidate.pppoePriDns = data.wanPriDns;
+        _this.formValidate.pppoeSecDns = data.wanSecDns;
+        _this.formValidate.pppoeUser = data.pppoeUser;
+        _this.formValidate.pppoePass = data.pppoePass;
+        _this.formValidate.pppoeMtu = data.pppoeMtu;
+        _this.formValidate.dnsMode = data.autoDns;
+        _this.formValidate.dhcpMtu = data.dhcpMtu;
+        _this.formValidate.dhcpPriDns = data.wanPriDns;
+        _this.formValidate.dhcpSecDns = data.wanSecDns;
+        _this.formValidate.lanIpPrefix = data.lanIpPrefix;
+        _this.formValidate.lanIpPrefixType = data.lanIpPrefixType;
+        _this.lanIpPrefixType = data.lanIpPrefixType;
+        _this.formValidate.lanIpPrefix = data.lanIpPrefix;
+        _this.lanIpPrefixLen = data.lanIpPrefixLen;
+        _this.lanIpMode = data.lanIpMode;
+        _this.pppoeDnsMode = data.autoDns;
+        _this.dnsMode = data.autoDns;
+    });
+  },
+  methods:{
+    changeConnMode:function(){
+        var _this = this;
+        if(_this.formValidate.connectionType == _this.connMode){
+            _this.formValidate.lanIpPrefixType = _this.lanIpPrefixType;
+        }else{
+            _this.formValidate.lanIpPrefixType = "0";
+        }
+        if(_this.formValidate.connectionType == 1){
+            if(_this.connMode == 1 && _this.pppoeDnsMode == 0){
+                _this.formValidate.pppoeDnsMode = "0";
+            }else{
+                _this.formValidate.pppoeDnsMode = "1";
+            }
+        }else if(_this.formValidate.connectionType == 2){
+            if(_this.connMode == 2 && _this.dnsMode == 0){
+                _this.formValidate.dnsMode = "0";
+            }else{
+                _this.formValidate.dnsMode = "1";
+            }
+        }
+    },
+    handleSubmit: function(name){
+        var _this = this;
+        _this.$refs[name].validate(function(valid){
+            if (valid) {
+                var postVar = {};
+                postVar.enabled = _this.formValidate.status == true ? "1" : "0";
+                postVar.connMode = _this.formValidate.connectionType;
+                if(_this.formValidate.connectionType == 0){
+                    postVar.staticIp = _this.formValidate.staticIPv6;
+                    postVar.staticGw = _this.formValidate.staticGw;
+                    postVar.staticPriDns = _this.formValidate.staticPriDns;
+                    postVar.staticSecDns = _this.formValidate.staticSecDns;
+                    postVar.staticMtu = _this.formValidate.staticMtu;
+                    postVar.staticIpPrefixLen = "64";
+                }else if(_this.formValidate.connectionType == 1){
+                    postVar.autoDns = _this.formValidate.pppoeDnsMode;
+                    if(postVar.autoDns == 0){
+                        postVar.wanPriDns = _this.formValidate.pppoePriDns;
+                        postVar.wanSecDns = _this.formValidate.pppoeSecDns;
+                    }
+                    postVar.pppoeUser = _this.formValidate.pppoeUser;
+                    postVar.pppoePass = _this.formValidate.pppoePass;
+                    postVar.pppoeMtu = _this.formValidate.pppoeMtu;
+                }else if(_this.formValidate.connectionType == 2){
+
+                    postVar.autoDns = _this.formValidate.dnsMode;
+                    if(postVar.autoDns == 0){
+                        postVar.wanPriDns = _this.formValidate.dhcpPriDns;
+                        postVar.wanSecDns = _this.formValidate.dhcpSecDns;
+                    }
+                    postVar.wanMtu = _this.formValidate.dhcpMtu;
+                }
+                postVar.lanIpMode = "0";
+                postVar.lanIpPrefixType = _this.formValidate.lanIpPrefixType;
+                postVar.lanIpPrefix = _this.formValidate.lanIpPrefix;
+                postVar.lanIpPrefixLen = "64";
+                uiPost.setIPv6Config(postVar,function(){
+                    var time = 20;
+                    _this.$Modal.success({
+                      loading:true,
+                      render: function(h) {
+                        return h('div',[
+                          _this.$t('common.loading'),
+                          h('Progress',{
+                            attrs:{ percent:_this.percent }
+                          })
+                        ])
+                      },
+                    });
+                    var percentTimer = setInterval(function(){
+                      if (_this.percent>=100) {
+                        clearInterval(percentTimer);
+                        location.href=location.href;
+                      }
+                      _this.percent++;
+                    },cs.getTimer(time));
+              });
+            }
+        })
+    },
+    pwdFocus:function(){
+        this.pwdType = 'text';
+    },
+    pwdBlur:function(){
+        this.pwdType = 'password';
+    }
+  }
+};
+</script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>

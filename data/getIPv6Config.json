@@ -1,0 +1,21 @@
+{
+    "enabled":    "1",
+    "connMode":    "1",
+    "pppoeUser":  "test",
+    "pppoePass": "test",
+    "staticIp": "2001:546e:90bc:0:ba55:10ff:fe24:77bd",
+    "staticIpPrefixLen": "64",
+    "staticGw":  "fe80::ba55:10ff:fe24:7854",
+    "staticPriDns":   "2001:913::8",
+    "staticSecDns":   "2001:913:800::12",
+    "autoDns": "0", 
+    "wanPriDns":   "2001:913::8",
+    "wanSecDns":   "2001:913:800::12",
+    "staticMtu":   "1500",
+    "pppoeMtu":    "1480",
+    "dhcpMtu":     "1500",
+    "lanIpPrefixType": "0",
+    "lanIpPrefix":   "2001:388:c066:1::",
+    "lanIpPrefixLen":   "64",
+    "lanIpMode":  "1"
+}

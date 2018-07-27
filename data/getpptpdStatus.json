@@ -1,0 +1,11 @@
+{
+	"Enabled":	"1",
+	"startip":	"10.1.1.2",
+	"endip":	"10.1.1.254",
+	"localip":	"10.1.1.1",
+	"wanpridns":	"119.29.29.29",
+	"wansecdns":	"114.114.114.114",
+	"servermtu":	"1480",
+	"servermru":	"1480",
+	"mppeencrypt":	"0"
+}

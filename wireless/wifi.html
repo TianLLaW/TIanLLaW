@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title></title>
+  <link rel="stylesheet" href="/plugin/iview/styles/iview.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div id="app"></div>
+
+<script type="text/x-template" id="main">
+<Col class="cs-container" span="20" >
+    <slot name="breadcrumb"></slot>
+    <!-- 这个不能删除，用于面包屑显示 -->
+    <div class="cs-content">
+        <Row>
+          <Col :xs="globalConfig.xs" :sm="globalConfig.sm" :md="globalConfig.md" :lg="globalConfig.lg">
+            <Card>
+            <Alert>
+              <!-- <h3>设置</h3> -->
+              {{ $t('wifi.help') }}
+            </Alert>
+            <Form ref="formValidate" :model="formValidate" :rules="ruleValidate" :label-width="globalConfig.labelWith" label-position="left">
+              <FormItem :label="$t('wifi.title')">
+                  <i-switch v-model="formValidate.status" size="large" :disabled="showWifiOff" @on-change="submitStatus">
+                      <span slot="open">{{ $t('common.enabled') }}</span>
+                      <span slot="close">{{ $t('common.disabled') }}</span>
+                  </i-switch>
+              </FormItem>
+              <Col v-show="formValidate.status" >
+                <FormItem :label="$t('wifi.ssid')" prop="ssid">
+                    <Input v-model="formValidate.ssid" :maxlength="32"></Input>
+                </FormItem>
+                <FormItem :label="$t('wifi.band')">
+                  	<div class="server"><Select v-model="formValidate.band" @on-change="bandChange">
+                      <Option class="server" v-for="bandwd in bandOption" :value="bandwd.value" :key="bandwd.value">{{bandwd.option}}</Option>
+                    </Select></div>
+                </FormItem>
+                <FormItem :label="$t('wifi.broadcast')">
+                    <i-switch v-model="formValidate.hssid" size="large" >
+                        <span slot="open">{{ $t('common.enabled') }}</span>
+                        <span slot="close">{{ $t('common.disabled') }}</span>
+                    </i-switch>
+                </FormItem>
+				<FormItem :label="$t('wifi.country')" v-show="this.countryBt == 1">
+                  <Select v-model="formValidate.countryCode" @on-change="codeChange" :key="$t('wifi.country')">
+                    <Option v-for="countrycode in countryOption " :value="countrycode.value" :key="countrycode.value">{{countrycode.option}}</Option>
+                  </Select>
+                </FormItem>
+                <FormItem :label="$t('wifi.bandwidth')">
+                  <Select v-model="formValidate.bandWidth" :key="$t('wifi.bandwidth')" @on-change="bwChange">
+                     <Option v-for="bwOption in createbw" :value="bwOption.value" :key="bwOption.value">{{bwOption.option}}</Option>
+                  </Select>
+                </FormItem>
+                <FormItem :label="$t('wifi.channel')">
+                  <Select v-model="formValidate.channel" :key="$t('wifi.channel')">
+                    <Option v-for="channelOption in channelOptions" :value="channelOption.value" :key="channelOption.value">{{channelOption.option}}</Option>
+                  </Select>
+                </FormItem>
+              <!-- btn -->
+			  <FormItem :label="$t('wifi.security')">
+                   <Select v-model="pass" @on-change="passType" :key="$t('wifi.security')">
+					<Option :value="0">{{ $t('wifi.nopass') }}</Option>
+					<Option :value="1">{{ $t('wifi.pass') }}</Option>
+                  </Select>
+              </FormItem>
+			  <FormItem :label="$t('wifi.password')" prop="key" v-if="keyshow">
+                      <Input v-model="formValidate.key"  :maxlength="63"></Input>
+              </FormItem>
+              <FormItem>
+                  <Button type="primary" @click="handleSubmit('formValidate')" :loading="applyLoading">{{ $t('wifi.apply') }}</Button>
+              </FormItem>
+            </Col>
+          </Form>
+          </Card>
+        </Col>
+      </Row>
+    </div>
+    <slot name="footer"></slot>
+</Col>
+</script>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/iview/iview.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/layout.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+var cs_main = {
+  template:"#main",
+  data:function(){
+    return {
+      globalConfig:globalConfig,
+	  applyLoading:false,
+      formValidate: {
+          ssid:'',
+          status:false,
+		  hssid:false,
+          band:'',
+		  channel:0,
+          key:'',
+		  bandWidth:'',
+		  countryCode:''
+      },
+	  showWifiOff:false,
+	  wifiIdx:'',
+	  wifiDualband:'',
+	  flag1:0,
+	  flag2:0,
+	  flag3:0,
+	  pass:0,
+	  keyshow:false,
+	  percent:0,
+	  countryCodeList:[],
+	  countryOption:[]
+    }
+  },
+  computed: {
+    ruleValidate: function(){
+      var _this = this;
+      return {
+          ssid: [
+            { required: true, message: this.$t('wifi.msg1',[this.$t('wifi.ssid')]), trigger: 'blur' },
+            { validator:function(r, v, f) {
+              var _s = cs.ssid(v);
+              if(_s != 99) {
+                f(_this.$t('wifi["msg'+(_s+1)+'"]'));
+              }
+			  f();
+            },trigger: 'blur' }
+          ],
+          key: [
+            { validator:function(r, v, f) {
+				var _s = cs.string(v);
+				if(_s == 1){
+					f(_this.$t('wifi.msg10'));
+				}
+				if(v.length < 8 || v.length >63){
+					f(_this.$t('wifi.msg8'));
+				}
+				f();
+              },trigger: 'blur' }
+		  ]
+        }   
+    },
+    createbw:function(){
+        var new_option = [];
+        var band = this.formValidate.band;
+        if(band < 6){
+            new_option=[
+                {option:'20MHz',value:'1'}
+            ]
+        }else if((band >= 6 && band < 12) || (band == 75)){
+            new_option=[
+                {option:this.$t('wifi.auto'),value:'0'},
+                {option:'20MHz',value:'1'},
+                {option:'40MHz',value:'2'}
+            ]
+        }else if(band >= 12 && band !=75){
+            new_option=[
+                {option:this.$t('wifi.auto'),value:'0'},
+                {option:'20MHz',value:'1'},
+                {option:'40MHz',value:'2'},
+                {option:'80MHz',value:'3'}
+            ]
+        }
+        return new_option;
+    },
+    channelOptions:function(type){
+		var options = [];
+		var country = this.formValidate.countryCode;
+		var arr11 = [
+			{option:this.$t('wifi.auto'),value:'0'}
+		];
+		if(this.wifiDualband == 1 && this.wifiIdx == 0){  //5G
+			var arr1 = [
+				{option:'36',value:'36'},
+				{option:'40',value:'40'},
+				{option:'44',value:'44'},
+				{option:'48',value:'48'}
+			  ];
+			var arr2 = [
+				{option:'52',value:'52'},
+				{option:'56',value:'56'},
+				{option:'60',value:'60'},
+				{option:'64',value:'64'}
+			];
+			var arr3 = [
+				{option:'149',value:'149'},
+				{option:'153',value:'153'},
+				{option:'157',value:'157'},
+				{option:'161',value:'161'}
+			];
+			var arr4 = [
+				{option:'100',value:'100'},
+				{option:'104',value:'104'},
+				{option:'108',value:'108'},
+				{option:'112',value:'112'},
+				{option:'116',value:'116'}
+			];
+			var arr5 = [
+				{option:'120',value:'120'},
+				{option:'124',value:'124'},
+				{option:'128',value:'128'}
+			];
+			var arr51 = [
+				{option:'132',value:'132'},
+				{option:'136',value:'136'},
+				{option:'140',value:'140'}
+			];
+			var arr6 = [
+				{option:'36',value:'36'},
+				{option:'40',value:'40'},
+				{option:'44',value:'44'},
+				{option:'48',value:'48'}
+			];
+			var arr165 = [
+				{option:'165',value:'165'}
+			];
+			if((this.formValidate.band == '8' || this.formValidate.band == '14') && this.formValidate.bandWidth == '1'){
+				switch(country){
+					case 'CN':
+						options = arr11.concat(arr3,arr165);
+						break;
+					case 'EU':
+						options = arr11.concat(arr1,arr2);
+						break;
+					case 'MY':
+						options = arr11.concat(arr6,arr3,arr165);
+						break;
+					case 'JP':
+						options = arr11.concat(arr6);
+						break;
+					case 'IA':
+						options = arr11.concat(arr3,arr165);
+						break;
+					case 'OT':
+					case 'US':
+						options = arr11.concat(arr1,arr3,arr165);
+						break;
+					default:
+						options = arr11.concat(arr6,arr2,arr4,arr5,arr51,arr3,arr165);
+						break;
+				}
+			}else{
+				switch(country){
+					case 'CN':
+						options = arr11.concat(arr3);
+						break;
+					case 'EU':
+						options = arr11.concat(arr1,arr2);
+						break;
+					case 'MY':
+						options = arr11.concat(arr6,arr3);
+						break;
+					case 'JP':
+						options = arr11.concat(arr6);
+						break;
+					case 'IA':
+						options = arr11.concat(arr3);
+						break;
+					case 'OT':
+					case 'US':
+						options = arr11.concat(arr1,arr3);
+						break;
+					default:
+						options = arr11.concat(arr6,arr2,arr4,arr5,arr51,arr3);
+						break;
+				}
+			}
+        }else{ //2G
+			var arr21 = [
+				{option:'1',value:'1'},
+                {option:'2',value:'2'},
+                {option:'3',value:'3'},
+                {option:'4',value:'4'},
+                {option:'5',value:'5'},
+                {option:'6',value:'6'},
+                {option:'7',value:'7'},
+                {option:'8',value:'8'},
+                {option:'9',value:'9'},
+                {option:'10',value:'10'},
+                {option:'11',value:'11'}
+			];
+			var arr22 = [
+				{option:'12',value:'12'},
+                {option:'13',value:'13'}
+			];
+			var arr23 = [
+				{option:'14',value:'14'}
+			];
+            switch(country){
+				case 'US':
+					options = arr11.concat(arr21);
+					break;
+				case 'JP':
+					options = arr11.concat(arr21,arr22,arr23);
+					break;
+				case 'CN':
+				case 'EU':
+				case 'MY':
+				case 'OT':
+				case 'IA':
+				default:
+					options = arr11.concat(arr21,arr22);
+					break;
+            }
+        }
+            return options;
+    },
+	bandOption:function(){
+		var _this = this;
+		var new_option = [];
+		if(_this.wifiIdx == '0'){
+			new_option = [
+				{
+					option: '802.11A',
+					value: '2'
+				},{
+					option: '802.11A/N',
+					value: '8'
+				},{
+					option: '802.11A/N/AC',
+					value: '14'
+				}
+			]
+		}else{
+			new_option = [
+				{
+					option: '2.4 GHz (B)',
+					value: '1'
+				},{
+					option: '2.4 GHz (G)',
+					value: '4'
+				},{
+					option: '2.4 GHz (N)',
+					value: '6'
+				},{
+					option: '2.4 GHz (B+G+N)',
+					value: '9'
+				}
+			]
+		}
+		return new_option;
+	}
+  },
+  created:function() {
+    var _this = this;
+	var postVar = {};
+	var location = window.location.href;
+	if(location.indexOf("5g") >= 0){
+		this.wifiIdx = '0';  //5G
+	}else{
+		this.wifiIdx = '1';  //2.4G
+	}
+	postVar.wifiIdx = this.wifiIdx;   
+    uiPost.getWiFiBasicConfig(postVar,function(data) {
+		_this.formValidate.status     = data.wifiOff == 0 ? true : false;
+		_this.formValidate.hssid      = data.hssid == 0 ? true : false;
+		_this.wifiDualband            = data.wifiDualband;
+		_this.formValidate.bandWidth  = data.bw;
+		_this.formValidate.key        = data.key;
+		_this.formValidate.countryCode= data.countryCode;
+		_this.formValidate.ssid       = data.ssid;
+		_this.formValidate.channel    = data.channel;
+		_this.formValidate.band       = data.band;
+		_this.apcliEnable             = data.apcliEnable;
+		_this.channelDfs              = data.channelDfs;
+		_this.countryBt               = data.countryBt;
+		_this.hardModel               = data.hardModel;
+		_this.apacBt                  = data.apacBt;
+		_this.pass                    = data.key == "" ? 0 : 1;
+		if(data.ntpEnabled == 1 && data.wifiSchEnabled == 1){
+			_this.showWifiOff = true;
+		}else{
+			_this.showWifiOff = false;
+		}
+		var temp = '';
+		_this.countryCodeList = data.countryCodeList.split(",");
+		var tempArr = [];
+		for(var i in _this.countryCodeList){
+			tempArr[i] = {};
+			if(_this.countryCodeList[i] == 'CN'){
+				tempArr[i]['option'] = _this.$t('wifi.china');
+				tempArr[i]['value'] = 'CN';
+			}else if(_this.countryCodeList[i] == 'US'){
+				tempArr[i]['option'] = _this.$t('wifi.usa');
+				tempArr[i]['value'] = 'US';
+			}else if(_this.countryCodeList[i] == 'EU'){
+				tempArr[i]['option'] = _this.$t('wifi.europer');
+				tempArr[i]['value'] = 'EU';
+			}else if(_this.countryCodeList[i] == 'OT'){
+				tempArr[i]['option'] = _this.$t('wifi.other');
+				tempArr[i]['value'] = 'OT';
+			}else if(_this.countryCodeList[i] == 'IA'){
+				tempArr[i]['option'] = _this.$t('wifi.indonesia');
+				tempArr[i]['value'] = 'IA';
+			}
+			_this.countryOption.push(tempArr[i]);
+		}
+    });
+  },
+  methods:{
+    handleSubmit: function(name){
+        var _this = this;
+		_this.applyLoading = true;
+        _this.$refs[name].validate(function(valid){
+            if (valid) {
+              var postVar = {};
+			  if(_this.pass == 1){
+				postVar.key     = _this.formValidate.key;
+			  }else{
+				postVar.key     = "";
+			  }
+			  postVar.addEffect  = "0";
+              postVar.wifiOff    = _this.formValidate.status == true ? "0" : "1";
+			  postVar.hssid      = _this.formValidate.hssid == true ? "0" : "1";
+              postVar.ssid       = _this.formValidate.ssid;
+              postVar.band       = _this.formValidate.band;
+              postVar.channel    = _this.formValidate.channel;
+              postVar.bw         = _this.formValidate.bandWidth;
+			  postVar.countryCode= _this.formValidate.countryCode;
+              postVar.wifiIdx    = _this.wifiIdx;
+              uiPost.setWiFiBasicConfig(postVar,function(data){
+				var time = 23;
+			    _this.$Modal.success({
+                      loading:true,
+                      render: function(h) {
+                        return h('div',[
+                          _this.$t('common.loading'),
+                          h('Progress',{
+                            attrs:{ percent:_this.percent }
+                          })
+                        ])
+                      },
+                    });
+				var percentTimer = setInterval(function(){
+                if (_this.percent>=100) {
+                        clearInterval(percentTimer);
+						_this.$Message.success({content:_this.$t('wifi.Success'),onClose:function(){
+						}});
+						_this.applyLoading = false;
+                        location.href=location.href;
+                      }
+                      _this.percent++;
+                    },cs.getTimer(time));
+					
+
+              });
+            } else {
+				_this.applyLoading = false;
+              _this.$Message.error(_this.$t('wifi.Fail'));
+            }
+        })
+    },
+	submitStatus:function(){
+		var _this = this;
+        var postVar = {};
+        if(true == this.formValidate.status){
+            postVar.wifiOff = "0";
+        }else{
+            postVar.wifiOff = "1";
+        }
+		postVar.wifiIdx = this.wifiIdx;
+        postVar.addEffect = "1";
+        uiPost.setWiFiBasicConfig(postVar,function(data){
+				var time = 23;
+			    _this.$Modal.success({
+                      loading:true,
+                      render: function(h) {
+                        return h('div',[
+                          _this.$t('common.loading'),
+                          h('Progress',{
+                            attrs:{ percent:_this.percent }
+                          })
+                        ])
+                      },
+                    });
+				var percentTimer = setInterval(function(){
+                if (_this.percent>=100) {
+                        clearInterval(percentTimer);
+						_this.$Message.success({content:_this.$t('wifi.Success'),onClose:function(){
+						}});
+						_this.applyLoading = false;
+                        location.href=location.href;
+                      }
+                      _this.percent++;
+                    },cs.getTimer(time));
+					
+
+              });
+    },
+	codeChange:function(){
+		if(this.flag1 != 0){
+			this.formValidate.channel = "0";
+		}
+		this.flag1 = 1;
+	},
+	bandChange:function(){
+		var band = this.formValidate.band;
+		if(this.flag2 != 0){
+			if(band < 6){
+				this.formValidate.bandWidth = "1";
+			}else{
+				this.formValidate.bandWidth = "0";
+			}
+		}
+		this.flag2 = 1;
+	},
+	bwChange:function(){
+		if(this.flag3 != 0){
+			this.formValidate.channel = "0";
+		}
+		this.flag3 = 1;
+	},
+	passType:function(){
+		if(this.pass == 1)
+			this.keyshow = true;
+		else{
+			this.keyshow = false;
+		}
+	}
+  }
+};
+</script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>

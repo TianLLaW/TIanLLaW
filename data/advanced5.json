@@ -1,0 +1,15 @@
+{
+  "bgProtection": "1",
+  "beaconPeriod": "100",
+  "htBssCoexistence": "0",
+  "dtimPeriod": "1",
+  "fragThreshold":  "2346",
+  "rtsThreshold": "2347",
+  "txPreamble": "1",
+  "wmmCapable": "1",
+  "Beamforming":  "0",
+  "noForwarding": "0",
+  "txPower":  "0",
+  "WirelessMode": "14",
+  "wifiDualband": "1"
+}

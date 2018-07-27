@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title></title>
+  <link rel="stylesheet" href="/plugin/iview/styles/iview.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div id="app"></div>
+
+<script type="text/x-template" id="main">
+<Col class="cs-container" span="20" >
+    <slot name="breadcrumb"></slot>
+    <!-- 这个不能删除，用于面包屑显示 -->
+    <div class="cs-content">
+        <Row>
+          <Col :xs="globalConfig.xs">
+            <Card>
+            <!-- <Alert>
+             {{ $t('central.help') }}
+            </Alert> -->
+                <br>
+                {{ $t('user_status.title') }}
+                <hr>
+                <br>
+                <Row>
+                    <Col span="24">
+                        <Col span="8">
+                            <AutoComplete
+                              icon="ios-search"
+                              v-model="currentSelect"
+                              clearable
+                              style="width:260px">
+                            </AutoComplete>
+                        </Col>
+                        <Col span="5">
+                            <Select v-model="selectQuery">
+                                <Option value="0">{{ $t('user_status.all') }}</Option>
+                                <Option value="1">{{ $t('user_status.ip') }}</Option>
+                                <Option value="2">{{ $t('user_status.name') }}</Option>
+                                <Option value="3">{{ $t('user_status.comment') }}</Option>
+                            </Select>
+                        </Col>
+                        <Col span="2">&nbsp;</Col>
+                        <Col span="5">
+                            <Button @click="handleSearch">{{ $t('user_status.query') }}</Button>
+                        </Col>
+                    </Col>
+                </Row>
+                <br>
+                <hr>
+                <br>
+                <Col>
+                    <Table border ref="central" :columns="centralColumns" :data="centralData"></Table>
+                </Col>
+          </Card>
+        </Col>
+        </Row>
+    </div>
+    <!-- 这个不能删除，用于底部显示 -->
+    <slot name="footer"></slot>
+</Col>
+</script>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/iview/iview.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/layout.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+var cs_main = {
+    template: "#main",
+    data: function() {
+        var _this = this;
+        return {
+            globalConfig: globalConfig,
+            applyLoading: false,
+            percent: 0,
+            centralData:[],
+            currentSelect: '',
+            selectQuery:'0',
+            dataArr:[],
+            tmpArr:[]
+        }
+    },
+    computed: {
+        centralColumns: function() {
+            var _this = this;
+            return [{
+                type: 'index',
+                title: "ID",
+                width: '50'
+            }, {
+                title: _this.$t('user_status.name'),
+                key: 'name',
+                width: '80',
+                sortable: true
+            }, {
+                title: _this.$t('user_status.authentication_type'),
+                key: 'authenticate',
+                width: '105',
+                render:function(h,params){
+                    if(params.row.authenticate == "pptpd"){
+                        return "PPTP";
+                    }else if(params.row.authenticate == "xl2tpd"){
+                        return "L2TP";
+                    }else if(params.row.authenticate == "pppoe"){
+                        return "PPPoE";
+                    }
+                },
+                sortable: true
+            }, {
+                title: _this.$t('user_status.ip'),
+                key: 'ip',
+                sortable: true
+            }, {
+                title: _this.$t('user_status.device_ip'),
+                key: 'device_ip',
+                sortable: true
+            }, {
+                title: _this.$t('user_status.time'),
+                key: 'time',
+                render:function(h,params){
+                    var v = params.row.time.split(",");
+                    return v[0]+"/"+v[1]+"/"+v[2]+" "+v[3]+":"+v[4]+":"+v[5];
+                },
+                sortable: true
+            }, {
+                title: _this.$t('user_status.comment'),
+                key: 'comment',
+                sortable: true
+            }, {
+                title: _this.$t('user_status.operation'),
+                key: 'pid',
+                align: 'center',
+                render: function(h, params) {
+                    return h('Poptip',{
+                        props: {
+                            confirm: true,
+                            title: _this.$t('user_status.msg'),
+                            "ok-text":_this.$t('common.ok'),
+                            "cancel-text":_this.$t('common.cancel')
+                        },
+                        on: {
+                            "on-ok": function(){
+                                _this.disconnectVPN(params);
+                            }
+                        }
+                    }, [
+                        h('Button', {
+                            props: {
+                                type: 'error',
+                                size: 'small'
+                            },
+                        }, _this.$t('user_status.disconnect'))
+                    ]);
+                }
+            }];
+        }
+    },
+    created: function() {
+        var _this = this;
+        uiPost.getUserInfo(function(data){
+            if (data.length != 0){
+                _this.centralData = data.slice(0);
+                _this.dataArr = _this.centralData;   
+            }
+        });
+    },
+    methods: {
+        handleSearch:function(){
+            this.tmpArr = [];
+            this.centralData = this.dataArr;
+            for(var i in this.centralData){
+                for(var j in this.centralData[i]){
+                    this.centralData[i].falg = false;
+                    if(this.selectQuery == 0){
+                        if(this.centralData[i][j] == "pptpd"){
+                            if(this.currentSelect.toLowerCase() == this.centralData[i][j].substring(0,4)){
+                                this.centralData[i].falg = true;
+                                break;
+                            }
+                        }else if(this.centralData[i][j] == "xl2tpd"){
+                            if(this.currentSelect.toLowerCase() == this.centralData[i][j].substring(1,5)){
+                                this.centralData[i].falg = true;
+                                break;
+                            }
+                        }else{
+                            if(this.currentSelect.toLowerCase() == this.centralData[i][j]){
+                                this.centralData[i].falg = true;
+                                break;
+                            }
+                        }
+                        
+                    }else if(this.selectQuery == 1){
+                        if("ip" != j){
+                            continue;
+                        }
+                        if(this.currentSelect.toLowerCase() == this.centralData[i][j]){
+                            this.centralData[i].falg = true;
+                            break;
+                        }
+                    }else if(this.selectQuery == 2){
+                        if("name" != j){
+                            continue;
+                        }
+                        if(this.currentSelect.toLowerCase() == this.centralData[i][j]){
+                            this.centralData[i].falg = true;
+                            break;
+                        }
+                    }else if(this.selectQuery == 3){
+                        if("comment" != j){
+                            continue;
+                        }
+                        if(this.currentSelect.toLowerCase() == this.centralData[i][j]){
+                            this.centralData[i].falg = true;
+                            break;
+                        }
+                    } 
+                }
+                if(this.centralData[i].falg){
+                    this.tmpArr.push(this.centralData[i]);
+                }
+            }
+            this.centralData = this.tmpArr;
+        },
+        disconnectVPN:function(obj){
+            var postVar = {};
+            postVar.pid = obj.row.pid;
+            uiPost.disconnectVPN(postVar,function(){
+                location.href = location.href;
+            })
+        },
+    }
+};
+</script>
+<script src="/static/js/main.js"></script>
+</body> 
+</html>

@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title></title>
+  <link rel="stylesheet" href="/plugin/iview/styles/iview.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div id="app"></div>
+
+<script type="text/x-template" id="main">
+<Col class="cs-container" span="20" >
+    <slot name="breadcrumb"></slot>
+    <!-- 这个不能删除，用于面包屑显示 -->
+    <div class="cs-content">
+      <Row>
+        <Col :xs="globalConfig.xs" :sm="globalConfig.sm" :md="globalConfig.md" :lg="globalConfig.lg">
+          <Card>
+          <Alert>
+            <!-- <h3>设置</h3> -->
+            {{ $t('multiap.help') }}
+          </Alert>
+          <Form ref="formValidate" :model="formValidate" :rules="ruleValidate" :label-width="globalConfig.labelWith" label-position="left">
+              <FormItem :label="$t('multiap.ssid')" prop="ssid">
+                  <Input v-model="formValidate.ssid" :maxlength="32"></Input>
+              </FormItem>
+              <FormItem :label="$t('multiap.hidessid')" prop="hssid">
+                  <i-switch v-model="formValidate.hssid" size="large" >
+                      <span slot="open">{{ $t('common.enabled') }}</span>
+                      <span slot="close">{{ $t('common.disabled') }}</span>
+                  </i-switch>
+              </FormItem>
+			  <FormItem :label="$t('multiap.security_mode')">
+                   <Select v-model="pass" @on-change="passType" :key="$t('multiap.security_mode')">
+					<Option :value="0">{{ $t('multiap.nopass') }}</Option>
+					<Option :value="1">{{ $t('multiap.pass') }}</Option>
+                  </Select>
+              </FormItem>
+			  <FormItem :label="$t('wifi.password')" prop="key" v-if="keyshow">
+                      <Input v-model="formValidate.key"  :maxlength="63"></Input>
+              </FormItem>
+            <!-- btn -->
+            <FormItem>
+                <Button type="primary" @click="handleSubmit('formValidate')">{{ $t('multiap.add') }}</Button>
+            </FormItem>
+        </Form>
+        </Card>
+      </Col>
+      </Row>
+        <Row>
+          <br>
+          {{ $t('multiap.multiap_tbl') }}
+          <hr>
+          <Col class="cs-btn-del">
+            <Poptip
+                confirm
+                :title="atonceSelectFalg?$t('multiap.msg13'):$t('multiap.msg12')"
+                @on-popper-show="tableSelectAtonce"
+                @on-ok="tableSelect(true)"
+                @on-cancel="cancel">
+                <Button size="small" type="error">{{ $t('macf.delete') }}</Button>
+            </Poptip>
+            <!-- <Button size="small" @click="tableSelect(true)" type="error">{{ $t('multiap.delete') }}</Button> -->
+          </Col>
+            <Col >
+            <Table border ref="tableSelect" :columns="multiapColumns" :data="multiapData" @on-row-click="modifyClick"></Table>
+            </Col>
+        </Row>
+    </div>
+    <slot name="footer"></slot>
+</Col>
+</script>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/iview/iview.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/layout.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+var cs_main = {
+  template:"#main",
+  data:function(){
+    var _this = this;
+    return {
+      globalConfig:globalConfig,
+      applyLoading:false,
+      atonceSelectFalg:false,
+      formValidate: {
+          status:false,
+          ssid:'',
+          hssid:true,
+          key:'',
+      },
+      wifiOff2:'',
+      wifiOff3:'',
+      ssid2:'',
+      ssid3:'',
+      key2:'',
+      key3:'',
+      hssid:[],
+      wifiIdx:'',
+      add_flag: 0,
+      showModel:false,
+      multiapData:[],
+	  pass:0,
+	  keyshow:false
+    }
+  },
+  computed: {
+      ruleValidate: function(){
+        var _this = this;
+        return {
+          ssid: [
+            { required: true, message: this.$t('multiap.msg1'), trigger: 'blur' },
+            { validator:function(r, v, f) {
+              var _s = cs.ssid(v);
+              if(_s != 99) {
+                f(_this.$t('multiap["msg'+(_s+1)+'"]'));
+              }else{
+                f();
+              }
+            },trigger: 'blur' }
+          ],
+         key: [
+            { validator:function(r, v, f) {
+				var _s = cs.string(v);
+				if(_s == 1){
+					f(_this.$t('multiap.msg10'));
+				}
+				if(v.length < 8 || v.length >63){
+					f(_this.$t('multiap.msg9'));
+				}
+				f();
+              },trigger: 'blur' }
+		  ]
+		 }
+      },
+	  multiapColumns: function(){
+		var _this = this;
+		return [{
+            type: 'selection',
+            key: 'idx',
+            width: '100',
+            sortable: true
+            },
+            {
+                title: 'ID',
+                key: 'id',
+                sortable: true
+            },
+            {
+                title: this.$t('multiap.ssid'),
+                key: 'ssid',
+                sortable: true
+            },
+            {
+                title: this.$t('multiap.security_mode'),
+                key: 'security_mode',
+                sortable: true
+            },
+            {
+                title: this.$t('multiap.select'),
+                key: 'idx',
+                align: 'center',
+                render: function(h, params) {
+                    return h('Poptip',{
+                        props: {
+                            confirm: true,
+                            title: _this.$t('macf.msg12'),
+                            "ok-text":_this.$t('common.ok'),
+                            "cancel-text":_this.$t('common.cancel')
+                        },
+                        on: {
+                            "on-ok": function(){
+                                _this.deleteData(params);
+                            }
+                        }
+                    }, [
+                        h('Button', {
+                            props: {
+                                type: 'error',
+                                size: 'small'
+                            },
+                        }, _this.$t('multiap.delete'))
+                    ]);
+                }
+            }
+        ]
+	  }
+  },
+  created:function() {
+      var _this = this;
+      var postVar = {};
+      var location = window.location.href;
+      if(location.indexOf("5g") >= 0){
+        _this.wifiIdx = '0';  //5G
+      }else{
+        _this.wifiIdx = '1';  //2.4G
+      }
+      postVar.wifiIdx = _this.wifiIdx; 
+      uiPost.getWiFiMultipleConfig(postVar,function(data) {
+          _this.wifiOff2 = data.wifiOff2;
+          _this.ssid2 = data.ssid2;
+          _this.key2 = data.key2;
+          _this.wifiOff3 = data.wifiOff3;
+          _this.ssid3 = data.ssid3;
+          _this.key3 = data.key3;
+          _this.hssid = data.hssid.split(";");
+		  _this.bssidNum = data.bssidNum;
+		  var passmsg1, passmsg2;
+		  if(data.key2 == ""){
+			passmsg1 = _this.$t('multiap.nopass');
+		  }else{
+			passmsg1 = _this.$t('multiap.pass');
+		  }
+		  if(data.key3 == ""){
+			passmsg2 = _this.$t('multiap.nopass');
+		  }else{
+			passmsg2 = _this.$t('multiap.pass');
+		  }
+          var num = 1;
+		  var arr1 = [];
+          if(data.wifiOff2 == 0 && data.wifiOff3 == 1){
+			arr1 = [
+				{
+					ssid: _this.ssid2,
+					security_mode: passmsg1
+				}
+			];
+          }else if(data.wifiOff2 == 1  && data.wifiOff3 == 0){
+			arr1 = [
+				{
+					ssid: _this.ssid3,
+					security_mode: passmsg2
+				}
+			];
+          }else if(data.wifiOff2 == 0 && data.wifiOff3 == 0){
+			arr1 = [
+				{
+					ssid: _this.ssid2,
+					security_mode: passmsg1
+				},{
+					ssid: _this.ssid3,
+					security_mode: passmsg2
+				}
+			];
+          }
+          _this.multiapData = arr1;
+		  for(var i=0;i<_this.multiapData.length;i++){
+			_this.multiapData[i].id = i + 1;
+		  }
+      });
+  },
+  methods:{
+    handleSubmit: function(name) {
+        var _this = this;
+        _this.applyLoading = true;
+        _this.$refs[name].validate(function(valid){
+            if (valid) {
+                var postVar = {};
+                if(_this.add_flag == 0){
+                  if(_this.wifiOff2 == 1){
+                      _this.cur_flag = 2;
+                      postVar.doAction = "2";
+                      postVar.wifiOff2 = "0";
+                      postVar.wifiOff3 = _this.wifiOff3;
+                      postVar.hssid = (_this.formValidate.hssid==true?0:1)+ ";" + _this.hssid[1];
+                      postVar.ssid2 = _this.formValidate.ssid;
+                      postVar.ssid3 = _this.ssid3;
+                  }else if(_this.wifiOff3 == 1){
+                      _this.cur_flag = 3;
+                      postVar.doAction = "3";
+                      postVar.wifiOff2 = _this.wifiOff2;
+                      postVar.wifiOff3 = "0";
+                      postVar.hssid = _this.hssid[0] + ";" + (_this.formValidate.hssid==true?0:1);
+                      postVar.ssid2 = _this.ssid2;
+                      postVar.ssid3 = _this.formValidate.ssid;
+                  }else{
+                      _this.$Message.error(_this.$t('multiap.msg11'));
+                      _this.addIpfLoading = false;
+                      return false;
+                  } 
+				  postVar.bssidNum = String(Number(_this.bssidNum)+1);
+                }else{
+				  _this.cur_flag = _this.add_flag;
+                  if(_this.cur_flag == 2){
+                    postVar.doAction = _this.cur_flag;
+                    postVar.wifiOff2 = "0";
+                    postVar.wifiOff3 = _this.wifiOff3;
+                    postVar.hssid = (_this.formValidate.hssid==true?0:1)+ ";" +_this.hssid[1];
+                    postVar.ssid2 = _this.formValidate.ssid;
+                    postVar.ssid3 = _this.ssid3;
+                  }else if(_this.cur_flag == 3){
+                    postVar.doAction = _this.cur_flag;;
+                    postVar.wifiOff2 = _this.wifiOff2;
+                    postVar.wifiOff3 = "0";
+                    postVar.hssid = _this.hssid[0] + ";" + (_this.formValidate.hssid==true?0:1);
+                    postVar.ssid2 = _this.ssid2;
+                    postVar.ssid3 = _this.formValidate.ssid;
+                  }
+				  postVar.bssidNum = _this.bssidNum;
+                }
+				if(_this.pass == 1){
+                  if(_this.cur_flag == 2){
+                      postVar.key2 = _this.formValidate.key;
+                      postVar.key3 = _this.key3;
+                  }else if(_this.cur_flag == 3){
+                      postVar.key2 = _this.key2;
+                      postVar.key3 = _this.formValidate.key;
+                  }
+				}else{
+                    if(_this.cur_flag == 2){
+                        postVar.key3 = _this.key3;
+                        postVar.key2 = "";
+                    }else if(_this.cur_flag == 3){
+                        postVar.key2 = _this.key2;
+                        postVar.key3 = "";
+                    }
+				}
+                postVar.wifiIdx = _this.wifiIdx;
+                uiPost.setWiFiMultipleConfig(postVar,function(data){
+                    _this.applyLoading = false;
+                    location.href = location.href;
+                });
+            }else{
+                _this.applyLoading = false;
+            }
+        })
+		_this.add_flag = 0;
+    },
+    modifyClick:function(row) {
+	  var _this = this;
+      if(this.wifiOff2 == 0 || this.wifiOff3 == 0){
+        if(row.id == 1){
+          this.add_flag = 2;
+          this.formValidate.ssid = this.ssid2;
+          this.formValidate.hssid = this.hssid[0] == 0 ? true : false;
+		  if(this.key2 == ""){
+			this.pass = 0;
+		  }else{
+		    this.pass = 1;
+			this.formValidate.key = this.key2;
+		  }
+        }else if(row.id == 2){
+          this.add_flag = 3;
+          this.formValidate.ssid = this.ssid3;
+          this.formValidate.hssid = this.hssid[1] == 0 ? true : false;
+		  if(this.key3 == ""){
+			this.pass = 0;
+		  }else{
+		    this.pass = 1;
+			this.formValidate.key = this.key3;
+		  }
+        }    
+      }
+    },
+	passType:function(){
+		if(this.pass == 1)
+			this.keyshow = true;
+		else{
+			this.keyshow = false;
+		}
+	},
+    deleteData:function (obj) {
+        var _this = this;
+        var postVar = {};
+        if(obj.index == 0){
+          postVar.doAction = "2";
+          postVar.wifiOff2 = "1";
+          postVar.wifiOff3 = _this.wifiOff3;
+        }else{
+          postVar.doAction = "3";
+          postVar.wifiOff2 = _this.wifiOff2;
+          postVar.wifiOff3 = "1";
+        }
+        postVar.ssid2 = _this.ssid2;
+        postVar.key2 = _this.key2;
+        postVar.ssid3 = _this.ssid3;
+        postVar.key3 = _this.key3;
+        postVar.hssid = _this.hssid[0]+";"+_this.hssid[1];
+        postVar.wifiIdx = _this.wifiIdx;
+        uiPost.delWiFiMultipleConfig(postVar,function(){
+          //  _this.multiapData.splice(obj.index, 1);
+			location.href = location.href;
+        });
+		_this.add_flag = 0;
+    },
+    cancel:function(){
+        
+    },
+    tableSelectAtonce:function(){
+        var _this = this;
+        var getSelection = this.$refs.tableSelect.getSelection();
+        if (getSelection.length>0) {
+            _this.atonceSelectFalg = true;
+        }else{
+            _this.atonceSelectFalg = false;
+        }
+    },
+    tableSelect:function(status){
+        var _this = this;
+        if (status) {
+            var getSelection = this.$refs.tableSelect.getSelection();
+            if (getSelection.length>0) {
+                var postVar = {};
+				if(getSelection.length == 1){
+					if(getSelection[0].id == 1){
+					  postVar.doAction = "2";
+					  postVar.wifiOff2 = "1";
+					  postVar.wifiOff3 = _this.wifiOff3;
+					}else if(getSelection[0].id == 2){
+					  postVar.doAction = "3";
+					  postVar.wifiOff2 = _this.wifiOff2;
+					  postVar.wifiOff3 = "1";
+					}
+				}else{
+				  postVar.doAction = "1";
+                  postVar.wifiOff2 = "1";
+                  postVar.wifiOff3 = "1";
+				}
+                postVar.ssid2 = _this.ssid2;
+                postVar.key2 = _this.key2;
+                postVar.ssid3 = _this.ssid3;
+                postVar.key3 = _this.key3;
+                postVar.hssid = _this.hssid[0]+";"+_this.hssid[1];
+                postVar.wifiIdx = _this.wifiIdx;
+                uiPost.delWiFiMultipleConfig(postVar,function(){
+                    _this.$Message.success({content:_this.$t('multiap.msg14'),onClose:function(){
+                        location.href = location.href;
+                    }});
+                    
+                });
+            }
+        }else{
+            this.$refs.tableSelect.selectAll(hssid);
+        }
+    }
+  }
+};
+</script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>

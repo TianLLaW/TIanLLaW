@@ -1,0 +1,13 @@
+{
+ 	"NoticeEnabled":"1",
+ 	"NoticeUrl":  "www.totolink.cn",
+ 	"BtnName": "123",
+ 	"WhiteListUrl1": "",
+ 	"WhiteListUrl2":"",
+ 	"WhiteListUrl3":"",
+ 	"IpFrom":"12",
+ 	"IpTo":"22",
+ 	"LanSubnet":"56",
+ 	"NoticeTimeoutVal":"12",
+ 	"lanIp":"192.168.0.1"
+}

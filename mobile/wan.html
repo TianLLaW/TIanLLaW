@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+  <title></title>
+  <link rel="stylesheet" href="/plugin/ydui/ydui.rem.css">
+  <link rel="stylesheet" href="/static/css/style.mobile.css">
+</head>
+<body>
+<div id="app"></div>
+<script type="text/x-template" id="main">
+<div class="main">
+<yd-cell-group>
+    <yd-cell-item type="label">
+        <span slot="left">{{ $t("wan.status") }}：</span>
+        <span slot="right">{{ wanModeMsg }}</span>
+    </yd-cell-item>
+    <yd-cell-item arrow type="label">
+        <span slot="left">{{ $t("wan.wanmode") }}：</span>
+        <select slot="right" v-model="formValidate.wanMode">
+            <option value="0">{{ $t("wan.static_ip") }}</option>
+            <option value="1">DHCP</option>
+            <option value="3">PPPoE</option>
+        </select>
+    </yd-cell-item>
+</yd-cell-group>
+<yd-cell-group v-if="formValidate.wanMode == 0">
+    <yd-cell-item>
+        <span slot="left">{{ $t("wan.ip") }}：</span>
+        <yd-input slot="right" type="text" v-model="formValidate.staticIp" required></yd-input>
+    </yd-cell-item>
+    <yd-cell-item>
+        <span slot="left">{{ $t("wan.mask") }}：</span>
+        <yd-input slot="right" type="text" v-model="formValidate.staticMask" required></yd-input>
+    </yd-cell-item>
+    <yd-cell-item>
+        <span slot="left">{{ $t("wan.gateway") }}：</span>
+        <yd-input slot="right" type="text" v-model="formValidate.staticGw" required></yd-input>
+    </yd-cell-item>
+    <yd-cell-item>
+        <span slot="left">{{ $t("wan.pri_dns") }}：</span>
+        <yd-input slot="right" type="text" v-model="formValidate.priDns" required></yd-input>
+    </yd-cell-item>
+    <yd-cell-item>
+        <span slot="left">{{ $t("wan.sec_dns") }}：</span>
+        <yd-input slot="right" type="text" v-model="formValidate.secDns" required></yd-input>
+    </yd-cell-item>
+</yd-cell-group>
+<yd-cell-group v-if="formValidate.wanMode == 3">
+    <yd-cell-item>
+        <span slot="left">{{ $t("wan.user") }}：</span>
+        <yd-input slot="right" type="text" v-model="formValidate.pppoeUser"></yd-input>
+    </yd-cell-item>
+    <yd-cell-item>
+        <span slot="left">{{ $t("wan.pass") }}：</span>
+        <yd-input slot="right" type="password" v-model="formValidate.pppoePass" required></yd-input>
+    </yd-cell-item>
+</yd-cell-group>
+<yd-button-group>
+    <yd-button size="large" type="primary" @click.native="handleSubmit">{{ $t('wan.apply') }}</yd-button>
+</yd-button-group>
+
+<!-- 不能删除 -->
+<br>
+<slot name="footer"></slot>
+</div>
+</script>
+</body>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/ydui/ydui.rem.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+var cs_main = {
+  template:"#main",
+  data:function(){
+    var _this = this;
+    return {
+      globalConfig:globalConfig,
+      menu:mobileMenu,
+      selected:'status',
+      popupVisible:true,
+      formValidate: {
+          wanMode: '',
+          staticIp:'',
+          staticMask:'',
+          staticGw:'',
+          priDns:'',
+          secDns:'',
+          pppoeUser:'',
+          pppoePass:''
+      },
+      wanConnStatus:'',
+      wanMode:''
+    }
+  },
+  computed:{
+    wanModeMsg:function(){
+      var temp = '';
+      if (this.wanMode == 0) {
+          if (this.wanConnStatus == "connected") {
+              temp = this.$t('wan.static_ip') + this.$t('wan.connected');
+          } else {
+              temp = this.$t('wan.static_ip') + this.$t('wan.disconnected');
+          }
+      } else if (this.wanMode == 1) {
+          if (this.wanConnStatus == "connected") {
+              temp = 'DHCP ' + this.$t('wan.connected');
+          } else {
+              temp = 'DHCP ' + this.$t('wan.disconnected');
+          }
+      } else if (this.wanMode == 3) {
+          if (this.wanConnStatus == "connected") {
+              temp = 'PPPoE ' + this.$t('wan.connected');
+          } else {
+              temp = 'PPPoE ' + this.$t('wan.disconnected');
+          }
+      }
+      return temp;
+    }
+  },
+  created:function(){
+    globalConfig.iHeader = this.$t('menu.wan');
+    console.log(globalConfig.iHeader);
+    localStorage.setItem('cs_mobile_menu', 'wan');
+    var _this = this;
+      var postVar = {};
+      uiPost.getWanConfig(function(data) {
+          _this.wanMode = data.wanMode;
+          _this.formValidate.wanMode = data.wanMode;
+          _this.formValidate.staticIp = data.staticIp;
+          _this.formValidate.staticMask = data.staticMask;
+          _this.formValidate.staticGw = data.staticGw;
+          _this.formValidate.priDns = data.priDns;
+          _this.formValidate.secDns = data.secDns;
+          _this.formValidate.pppoeUser = data.pppoeUser;
+          _this.formValidate.pppoePass = data.pppoePass;
+          _this.wanConnStatus = data.wanConnStatus;
+      });
+  },
+  methods:{
+    handleSubmit: function () {
+        var _this = this;
+        var postVar = {};
+        if(0 == _this.formValidate.wanMode){
+          var _s = cs.ip(this.formValidate.staticIp);
+          if(_s == 0) {
+            this.$dialog.notify({mes:_this.$t('wan.ip')+_this.$t('wan.msg1')});
+            return false;
+          }else if(_s == 1){
+            this.$dialog.notify({mes:_this.$t('wan.ip')+_this.$t('wan.msg20')});
+            return false;
+          }else if(_s == 2){
+            this.$dialog.notify({mes:_this.$t('wan.ip')+_this.$t('wan.msg2')});
+            return false;
+          }else if(_s == 3){
+            this.$dialog.notify({mes:_this.$t('wan.ip')+_this.$t('wan.msg3')});
+            return false;
+          }else if(_s == 4){
+            this.$dialog.notify({mes:_this.$t('wan.ip')+_this.$t('wan.msg4')});
+            return false;
+          }
+          var _s = cs.mask(this.formValidate.staticMask);
+          if(_s == 0) {
+            this.$dialog.notify({mes:_this.$t('wan.mask')+_this.$t('wan.msg1')});
+            return false;
+          }else if(_s == 1){
+            this.$dialog.notify({mes:_this.$t('wan.msg5')});
+            return false;
+          }
+          var _s = cs.ip(this.formValidate.staticGw);
+          if(_s == 0) {
+            this.$dialog.notify({mes:_this.$t('wan.gateway')+_this.$t('wan.msg1')});
+            return false;
+          }else if(_s == 1){
+            this.$dialog.notify({mes:_this.$t('wan.gateway')+_this.$t('wan.msg20')});
+            return false;
+          }else if(_s == 2){
+            this.$dialog.notify({mes:_this.$t('wan.gateway')+_this.$t('wan.msg2')});
+            return false;
+          }else if(_s == 3){
+            this.$dialog.notify({mes:_this.$t('wan.gateway')+_this.$t('wan.msg3')});
+            return false;
+          }else if(_s == 4){
+            this.$dialog.notify({mes:_this.$t('wan.gateway')+_this.$t('wan.msg4')});
+            return false;
+          }else{
+            if(
+               _this.formValidate.staticGw.split('.')[0] != _this.formValidate.staticIp.split('.')[0]
+              || _this.formValidate.staticGw.split('.')[1] != _this.formValidate.staticIp.split('.')[1] 
+              || _this.formValidate.staticGw.split('.')[2] != _this.formValidate.staticIp.split('.')[2]
+            ){
+              this.$dialog.notify({mes:_this.$t('wan.msg6')});
+              return false;
+            }
+            if(_this.formValidate.staticGw == _this.formValidate.staticIp){
+              this.$dialog.notify({mes:_this.$t('wan.msg7')});
+              return false;
+            }
+          }
+          var _s = cs.ip(this.formValidate.priDns);
+          if(_s == 0) {
+            this.$dialog.notify({mes:_this.$t('wan.pri_dns')+_this.$t('wan.msg1')});
+            return false;
+          }else if(_s == 1){
+            this.$dialog.notify({mes:_this.$t('wan.pri_dns')+_this.$t('wan.msg20')});
+            return false;
+          }else if(_s == 2){
+            this.$dialog.notify({mes:_this.$t('wan.pri_dns')+_this.$t('wan.msg2')});
+            return false;
+          }else if(_s == 3){
+            this.$dialog.notify({mes:_this.$t('wan.pri_dns')+_this.$t('wan.msg3')});
+            return false;
+          }else if(_s == 4){
+            this.$dialog.notify({mes:_this.$t('wan.pri_dns')+_this.$t('wan.msg4')});
+            return false;
+          }
+          var _s = cs.ip(this.formValidate.secDns);
+          if(_s == 0) {
+            this.$dialog.notify({mes:_this.$t('wan.sec_dns')+_this.$t('wan.msg1')});
+            return false;
+          }else if(_s == 1){
+            this.$dialog.notify({mes:_this.$t('wan.sec_dns')+_this.$t('wan.msg20')});
+            return false;
+          }else if(_s == 2){
+            this.$dialog.notify({mes:_this.$t('wan.sec_dns')+_this.$t('wan.msg2')});
+            return false;
+          }else if(_s == 3){
+            this.$dialog.notify({mes:_this.$t('wan.sec_dns')+_this.$t('wan.msg3')});
+            return false;
+          }else if(_s == 4){
+            this.$dialog.notify({mes:_this.$t('wan.sec_dns')+_this.$t('wan.msg4')});
+            return false;
+          }
+          postVar.staticIp = _this.formValidate.staticIp;
+          postVar.staticMask = _this.formValidate.staticMask;
+          postVar.staticGw = _this.formValidate.staticGw;
+          postVar.priDns = _this.formValidate.priDns;
+          postVar.secDns = _this.formValidate.secDns;
+        }else if(1 == _this.formValidate.wanMode){
+        }else if(3 == _this.formValidate.wanMode){
+          var _s = cs.string(this.formValidate.pppoeUser);
+          if(_s == 0) {
+            this.$dialog.notify({mes:_this.$t('wan.msg12')});
+            return false;
+          }else if(_s == 1){
+            this.$dialog.notify({mes:_this.$t('wan.msg13')});
+            return false;
+          }
+          var _s = cs.string(this.formValidate.pppoePass);
+          if(_s == 0) {
+            this.$dialog.notify({mes:_this.$t('wan.msg14')});
+            return false;
+          }else if(_s == 1){
+            this.$dialog.notify({mes:_this.$t('wan.msg15')});
+            return false;
+          }
+          postVar.pppoeUser = _this.formValidate.pppoeUser;
+          postVar.pppoePass = _this.formValidate.pppoePass;
+        }
+        postVar.wanMode = _this.formValidate.wanMode;
+        uiPost.setWanConfig(postVar,function(data){
+          _this.$dialog.toast({
+              mes: _this.$t('changepwd.msg7'),
+              icon: 'success',
+              callback:function(){
+                location.href = location.href;
+              }
+          });
+        });
+    }
+  }
+};
+</script>
+<script src="/static/js/main.mobile.js"></script>
+</html>

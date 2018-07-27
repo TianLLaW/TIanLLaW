@@ -1,0 +1,25 @@
+[{
+		"typeid":	"1",
+		"config_name":	"app_config_1000",
+		"apptype_en":	"COMMUNITY",
+		"apptype_cn":	"社交应用",
+		"apptype_ct":	"社交應用"
+	}, {
+		"typeid":	"1",
+		"config_name":	"app_config_2000",
+		"apptype_en":	"ENTERAUDIO",
+		"apptype_cn":	"娱乐影音",
+		"apptype_ct":	"娛樂影音"
+	}, {
+		"typeid":	"1",
+		"config_name":	"app_config_3000",
+		"apptype_en":	"SHOPPING",
+		"apptype_cn":	"理财网购",
+		"apptype_ct":	"理財網購"
+	}, {
+		"typeid":	"2",
+		"config_name":	"app_config_4000",
+		"apptype_en":	"GameSwift",
+		"apptype_cn":	"游戏加速",
+		"apptype_ct":	"遊戲加速"
+	}]

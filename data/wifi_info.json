@@ -1,0 +1,22 @@
+{
+  "wifiOff":	"0",
+  "channel":	"52",
+  "hssid":	"0",
+  "bw":	"0",
+  "ntpEnabled":	"0",
+  "wifiSchEnabled":	"1",
+  "key":	"12345678",
+  "ssid":	"TOTOLINK_A800R_5G",
+  "band":	"14",
+  "authMode":	"WPAPSK",
+  "encrypType":	"TKIPAES",
+  "keyFormat":	"0",
+  "apcliEnable":	"0",
+  "channelDfs":	"1",
+  "wifiDualband":	"1",
+  "countryBt":    "1",
+  "hardModel":    "",
+  "apAcBt":    "0",
+  "countryCode": "CN",
+  "countryCodeList":"CN,US,EU,OT,IA"
+}

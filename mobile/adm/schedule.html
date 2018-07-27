@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+  <title></title>
+  <link rel="stylesheet" href="/plugin/ydui/ydui.rem.css">
+  <link rel="stylesheet" href="/static/css/style.mobile.css">
+</head>
+<body>
+<div id="app"></div>
+<script type="text/x-template" id="main">
+<div class="main">
+<yd-cell-group>
+  <yd-cell-item arrow>
+        <span slot="left">{{ $t('reboot_schedule.state') }}：</span>
+    <!--    <yd-switch slot="right" v-model="formValidate.status" @click.native="submitStatus"></yd-switch>-->
+      <select slot="right" v-model="formValidate.schmode">
+          <option value="0">{{ $t('reboot_schedule.disabled') }}</option>
+          <option value="1">{{ $t('reboot_schedule.spec_time') }}</option>
+          <option value="2">{{ $t('reboot_schedule.countdown') }}</option>
+      </select>
+    </yd-cell-item>
+    <yd-button-group v-if="formValidate.schmode == '0'">
+        <yd-button size="large" type="primary" @click.native="handleSubmit">{{ $t('common.apply') }}</yd-button>
+    </yd-button-group>
+</yd-cell-group>
+<yd-cell-group v-if="formValidate.schmode == '1'">
+    <yd-cell-item arrow type="label">
+        <span slot="left">{{ $t('reboot_schedule.week') }}：</span>
+        <select slot="right" v-model="formValidate.week">
+            <option value="255">{{ $t('reboot_schedule.all') }}</option>
+            <option value="128">{{ $t('reboot_schedule.sun') }}</option>
+            <option value="2">{{ $t('reboot_schedule.mon') }}</option>
+            <option value="4">{{ $t('reboot_schedule.tue') }}</option>
+            <option value="8">{{ $t('reboot_schedule.wed') }}</option>
+            <option value="16">{{ $t('reboot_schedule.thu') }}</option>
+            <option value="32">{{ $t('reboot_schedule.fri') }}</option>
+            <option value="64">{{ $t('reboot_schedule.sat') }}</option>
+        </select>
+    </yd-cell-item>
+    <yd-cell-item arrow  type="label">
+        <span slot="left">{{ $t('reboot_schedule.time') }}：</span>
+        <yd-datetime type="time" v-model="formValidate.time" slot="right" value=""></yd-datetime>
+    </yd-cell-item>
+    <br>
+    <yd-button-group>
+        <yd-button size="large" type="primary" @click.native="handleSubmit">{{ $t('common.apply') }}</yd-button>
+    </yd-button-group>
+</yd-cell-group>
+    <yd-cell-group v-if="formValidate.schmode == '2'">
+        <yd-cell-item>
+            <span slot="left">{{ $t("reboot_schedule.countdown") }}：</span>
+            <yd-input slot="right" type="text" v-model="formValidate.recHour" required  max="3"></yd-input>
+        </yd-cell-item>
+        <yd-cell-item>
+            <span slot="left">{{ $t("reboot_schedule.uptime") }}：</span>
+            <span slot="right">{{sysTime }}</span>
+        </yd-cell-item>
+        <yd-cell-item>
+            <span slot="left">{{ $t("reboot_schedule.rebootsch_countdown") }}：</span>
+            <span slot="right">{{ recTime}}</span>
+        </yd-cell-item>
+        <br>
+        <yd-button-group>
+            <yd-button size="large" type="primary" @click.native="handleSubmit">{{ $t('common.apply') }}</yd-button>
+        </yd-button-group>
+    </yd-cell-group>
+    <!-- 不能删除 -->
+</div>
+</script>
+</body>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/ydui/ydui.rem.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+var cs_main = {
+  template:"#main",
+  data:function(){
+    var _this = this;
+    return {
+      globalConfig:globalConfig,
+      menu:mobileMenu,
+      formValidate: {
+          schmode: '0',
+          week: '',
+          time:'',
+          recHour:''
+      },
+        sysTime:'',
+        recTime:'',
+        hour:'',
+        minute:'',
+        week:'',
+        recHour:'',
+        sysruntime:''
+    }
+  },
+  computed:{
+    
+  },
+  created:function(){
+    var _this = this;
+    uiPost.getRebootScheCfg(function(data) {
+      _this.formValidate.schmode = data.mode;
+      var systime = data.sysTime.split(';');
+      var rectime = data.recTime.split(';');
+      _this.sysTime = systime[0]+_this.$t('reboot_schedule.day')+','+systime[1]+_this.$t('reboot_schedule.hour')+','+systime[2]+_this.$t('reboot_schedule.min')+','+systime[3]+_this.$t('reboot_schedule.sec');
+      _this.recTime = rectime[0]+_this.$t('reboot_schedule.day')+','+rectime[1]+_this.$t('reboot_schedule.hour')+','+rectime[2]+_this.$t('reboot_schedule.min')+','+rectime[3]+_this.$t('reboot_schedule.sec');
+      _this.formValidate.time = data.hour+":"+data.minute;
+      _this.formValidate.week = data.week;
+      _this.formValidate.recHour = data.recHour;
+      _this.NTPValid = data.NTPValid;
+
+      _this.hour = data.hour;
+      _this.minute = data.minute;
+      _this.week = data.week;
+      _this.recHour = data.recHour;
+      _this.sysruntime = systime;
+    });
+  },
+  methods:{
+    handleSubmit:function(){
+        var _this = this;
+        var postVar = {};
+        if(_this.formValidate.schmode == 0){
+            postVar.mode = _this.formValidate.schmode;
+            postVar.hour = _this.hour;
+            postVar.minute = _this.minute;
+            postVar.week = _this.week;
+            postVar.recHour = _this.recHour;
+            uiPost.setRebootScheCfg(postVar,function(){
+                location.href = location.href;
+            });
+        }else if(_this.formValidate.schmode == 1){
+            if(_this.NTPValid == '1'){
+                var time = _this.formValidate.time.split(':');
+                postVar.week = _this.formValidate.week;
+                var hour = time[0].replace(/\b(0+)/gi,"");
+                var min = time[1].replace(/\b(0+)/gi,"");
+                if(hour == "") hour = "0";
+                if(min == "") min = "0";
+                postVar.hour = hour;
+                postVar.minute = min;
+                postVar.mode = _this.formValidate.schmode;
+                postVar.recHour = _this.recHour;
+                uiPost.setRebootScheCfg(postVar,function(){
+                   location.href = location.href;
+                });
+            }else{
+                _this.$dialog.alert({mes: _this.$t('reboot_schedule.msg')});
+            }
+        }
+        else if(_this.formValidate.schmode == 2){
+            var _s = cs.num_range(_this.formValidate.recHour,1,240);
+            if(_this.formValidate.recHour == ""){
+                _this.$dialog.alert({mes: _this.$t('reboot_schedule.msg1')});
+                return false;
+            }
+            if(_s == 1 || _s == 2){
+                _this.$dialog.alert({mes: _this.$t('reboot_schedule.msg2')});
+                return false;
+            }
+            var v = ((parseInt(_this.sysruntime[0])*24+parseInt(_this.sysruntime[1]))*60+parseInt(_this.sysruntime[2]))*60+parseInt(_this.sysruntime[3]);
+            var v1 = parseInt(_this.formValidate.recHour)*3600;
+            if(v1 <= v){
+                _this.$dialog.confirm({
+                    mes:_this.$t('reboot_schedule.msg3'),
+                    opts:function(){
+                        postVar.mode = _this.formValidate.schmode;
+                        postVar.hour = _this.hour;
+                        postVar.minute = _this.minute;
+                        postVar.week = _this.week;
+                        postVar.recHour = _this.formValidate.recHour;
+                        uiPost.setRebootScheCfg(postVar,function(){
+                            _this.$dialog.loading.open(_this.$t('config.reboot_msg'));
+                            setTimeout(function() {
+                                _this.$dialog.loading.close();
+                                location.href = location.href;
+                            }, 120000);
+                        });
+                    }
+                });
+            }else {
+                postVar.mode = _this.formValidate.schmode;
+                postVar.hour = _this.hour;
+                postVar.minute = _this.minute;
+                postVar.week = _this.week;
+                postVar.recHour = _this.formValidate.recHour;
+                uiPost.setRebootScheCfg(postVar, function () {
+                    location.href = location.href;
+                });
+            }
+        }
+    }
+  }
+};
+</script>
+<script src="/static/js/main.mobile.js"></script>
+</html>

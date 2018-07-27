@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Error</title>
+    <style>
+        .cs-center { text-align: center; }
+        a{ text-decoration: none; }
+    </style>
+</head>
+<body class="cs-center">
+    <div id="text">
+    <h1>您的浏览器不支持！！！</h1>
+    <p>您需要更新您的浏览器才能使用该网站，我们推荐使用最新版的 <a href="https://chrome.google.com/">谷歌浏览器</a> 或者 <a href="http://www.firefox.com.cn/">火狐浏览器</a></p>
+    </div>
+    <script>
+        if (localStorage.lang == 'en') {
+            document.getElementById('text').innerHTML = '<h1>Your browser does not support!!!</h1> <p>You need to update your browser to use the site, and we recommend using the latest version <a href="https://chrome.google.com/">Google Chrome</a> or <a href="http://www.firefox.com.cn/">Firefox</a></p>'; 
+        }
+    </script>
+</body>
+</html>

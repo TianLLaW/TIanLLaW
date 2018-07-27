@@ -1,0 +1,14 @@
+{
+  "iptvEnabled":  "1",
+  "serviceType":  "0",
+  "lan1Type": "1",
+  "lan2Type": "2",
+  "lan3Type": "3",
+  "lan4Type": "3",
+  "iptvVid":  "1",
+  "iptvPri":  "0",
+  "ipphoneVid": "2",
+  "ipphonePri": "0",
+  "internetVid":  "3",
+  "internetPri":  "0"
+}

@@ -1,0 +1,6 @@
+{
+  "hardModel": "",
+  "meshEnabled": 0,
+  "importAction":"/cgi-bin/cstecgi.cgi?action=upload&setting/setQosConfig",
+  "maxSize":"10000"
+}

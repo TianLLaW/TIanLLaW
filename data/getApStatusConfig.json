@@ -1,0 +1,31 @@
+{
+	"RADIO0":	{
+		"country":	"CN",
+		"wirelessmode":	"9",
+		"htmode":	"0",
+		"channel":	"6",
+		"txpower":	"100",
+		"beacon":	"100"
+	},
+	"RADIO1":	{
+		"country":	"CN",
+		"wirelessmode":	"14",
+		"htmode":	"2",
+		"channel":	"161",
+		"txpower":	"100",
+		"beacon":	"100"
+	},
+	"SSIDS":	{
+		"id":	"1",
+		"gid":	"1",
+		"apid":	"1",
+		"usefor":	"3",
+		"ssid":	"",
+		"hide":	"0",
+		"isolate":	"0",
+		"encryption":	"0",
+		"passphrase":	"",
+		"stanum":	"32",
+		"vlanid":	"0"
+	}
+}

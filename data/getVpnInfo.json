@@ -1,0 +1,8 @@
+{
+	"l2tpEnable": "1",
+    "l2tpServer":  "192.168.0.100",
+    "l2tpUser": "123",
+    "l2tpPass": "123",
+    "l2tpConnect": "1",
+    "l2tpClientAddr": "192.168.0.25"
+ }

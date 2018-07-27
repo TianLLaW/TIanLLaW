@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title></title>
+  <link rel="stylesheet" href="/plugin/iview/styles/iview.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div id="app"></div>
+
+<script type="text/x-template" id="main">
+<i-col class="cs-container" span="20" >
+    <slot name="breadcrumb"></slot>
+    <!-- 这个不能删除，用于面包屑显示 -->
+    <div class="cs-content">
+        <Row>
+            <Col  :xs="globalConfig.xs" :sm="globalConfig.sm" :md="globalConfig.md" :lg="globalConfig.lg" >
+                <Alert>
+                  {{ $t('status.help') }}
+                </Alert>
+            </Col>
+        </Row>
+        <Row :gutter="26">
+            <!-- content start -->
+            <Col  :xs="globalConfig.xs" :sm="globalConfig.sm" :md="globalConfig.md" :lg="globalConfig.lg" >
+                <Card>
+                    <p slot="title"> 
+                        <Icon type="information-circled"></Icon>
+                        {{$t('status.wireless_info')}}
+                    </p>
+                    <Table stripe :show-header="false" :columns="wifi1Columns" :data="wifi1Data"></Table>
+                </Card>
+                <br>
+                <Card v-if="multiAp1 == '0'">
+                    <p slot="title">
+                        <Icon type="information-circled"></Icon>
+                        {{ $t('status.multi_ap') }} 1
+                    </p>
+                    <Table stripe :show-header="false" :columns="ssid1Columns" :data="ssid1Data"></Table>
+                </Card>
+                <br>
+                <Card v-if="multiAp2 == '0'">
+                    <p slot="title">
+                        <Icon type="information-circled"></Icon>
+                        {{ $t('status.multi_ap') }} 2
+                    </p>
+                    <Table stripe :show-header="false" :columns="ssid2Columns" :data="ssid2Data"></Table>
+                </Card>
+                <br>
+                <Card>
+                    <p slot="title">
+                        <Icon type="information-circled"></Icon>
+                        {{ $t('status.station_list') }} ({{ $t('status.connected_client') }}) : {{this.staNum}}
+                    </p>
+                    <Table stripe :columns="clientColumns" :data="clientData"></Table>
+                </Card>
+            </Col>
+            <!-- content end -->
+        </Row>
+    </div>
+
+    <!-- 这个不能删除，用于底部显示 -->
+    <slot name="footer"></slot>
+</i-col>
+</script>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/iview/iview.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/layout.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+var cs_main = {
+  template:"#main",
+  data:function(){
+    return {
+        globalConfig:globalConfig,
+        staNum:0,
+        wifi1Data:[],
+        ssid1Data:[],
+        ssid2Data:[],
+        clientData:[],
+        multiAp1:'',
+        multiAp2:'',
+        apNum:''
+      }
+    },
+    computed:{
+        wifi1Columns: function() {
+		var _this = this;
+		return [{
+                key: 'name'
+            },
+            {
+                key: 'value',
+				render:function(h,params){
+					if (params.row.name == _this.$t('status.ssid'))
+					{
+						var _html = params.row.value.replace(/ /ig,'&nbsp;&nbsp;');
+					    return h('div',{
+							domProps:{
+								innerHTML :_html
+							}
+						});
+					}
+					return h('div',params.row.value);
+				}
+            }
+           ]
+        },
+        ssid1Columns:function(){
+            var _this = this;
+          return [{
+                key: 'name'
+            },
+            {
+                key: 'value',
+				render:function(h,params){
+					if (params.row.name == _this.$t('status.ssid'))
+					{
+						var _html = params.row.value.replace(/ /ig,'&nbsp;&nbsp;');
+					    return h('div',{
+							domProps:{
+								innerHTML :_html
+							}
+						});
+					}
+					return h('div',params.row.value);
+				}
+            }
+           ]
+        },
+        ssid2Columns:function(){
+            var _this = this;
+          return [
+            {
+                key: 'name'
+            },
+            {
+                key: 'value',
+				render:function(h,params){
+					if (params.row.name == _this.$t('status.ssid'))
+					{
+						var _html = params.row.value.replace(/ /ig,'&nbsp;&nbsp;');
+					    return h('div',{
+							domProps:{
+								innerHTML :_html
+							}
+						});
+					}
+					return h('div',params.row.value);
+				}
+            }
+           ]
+        },
+        clientColumns: function(){
+            var _this = this;
+            return [
+            {
+                title: _this.$t('status.mac'),
+                key: 'mac'
+            },
+            {
+                title: _this.$t('status.model'),
+                key: 'mode'
+            },
+            {
+                title: _this.$t('status.band_width'),
+                key: 'bw'
+            },
+            {
+                title: _this.$t('status.signal'),
+                key: 'rssi',
+                render: function(h, params){
+                    return h('Progress', {
+                        attrs:{
+                            'percent': parseInt(params.row.rssi)
+                        }   
+                    })
+                }
+             }
+          ]
+        }
+    },
+    created:function() {
+        var _this = this;
+        var postVar={};
+        var location = window.location.href;
+        if(location.indexOf("5g") >= 0){
+          _this.wifiIdx = '0';  //5G
+        }else{
+          _this.wifiIdx = '1';  //2.4G
+        }
+        postVar.wifiIdx = _this.wifiIdx; 
+        uiPost.getWiFiApInfo(postVar,function(data) {
+            
+            /****************************************主AP*******************************************/
+            var wifistatus, passmsg;
+            if(data.wifiOff1 == 0){
+                wifistatus = _this.$t('status.enabled');
+            }else{
+                wifistatus = _this.$t('status.disabled');
+            }
+			if(data.key1 == ""){
+				passmsg = _this.$t('status.nopass');
+			}else{
+				passmsg = _this.$t('status.pass');
+			}
+			var arr = [
+				{
+					name:_this.$t('status.wirelss_status'),
+					value:wifistatus
+				},
+				{
+					name:_this.$t('status.ssid'),
+					value:data.ssid1
+				},
+				{
+					name:_this.$t('status.band'),
+					value:_this.setWirelessMode(data.band)
+				},
+				{
+					name:_this.$t('status.channel'),
+					value:  data.channel == '0' ? _this.$t('status.auto')+"("+data.autoChannel+")" : data.channel
+				},
+				{
+					name:_this.$t('status.encryption_mode'),
+					value:passmsg
+				},
+				{
+					name:_this.$t('status.mac'),
+					value:data.bssid1
+				}
+			];
+            _this.wifi1Data = arr;
+            
+            /*********************************多AP1***************************************/
+            var wifistatus1;
+            _this.multiAp1 = data.wifiOff2;
+            if(data.wifiOff2 == "0"){
+				if(data.key2 == ""){
+					passmsg = _this.$t('status.nopass');
+				}else{
+					passmsg = _this.$t('status.pass');
+				}
+                wifistatus1 = _this.$t('status.enabled');
+				var arr1 = [
+					{
+						name:_this.$t('status.wirelss_status'),
+						value:wifistatus1
+					},
+					{
+						name:_this.$t('status.ssid'),
+						value:data.ssid2
+					},
+					{
+						name:_this.$t('status.band'),
+						value:_this.setWirelessMode(data.band)
+					},
+					{
+						name:_this.$t('status.encryption_mode'),
+						value:passmsg
+					},
+					{
+						name:_this.$t('status.mac'),
+						value:data.bssid2
+					}
+				];
+                _this.ssid1Data = arr1;
+            }
+            
+            /*********************************多AP2***************************************/
+            var wifistatus2;
+            _this.multiAp2 = data.wifiOff3;
+            if(data.wifiOff3 == "0"){
+				if(data.key3 == ""){
+					passmsg = _this.$t('status.nopass');
+				}else{
+					passmsg = _this.$t('status.pass');
+				}
+                wifistatus2 = _this.$t('status.enabled');
+				var arr2 = [
+					{
+						name:_this.$t('status.wirelss_status'),
+						value:wifistatus2
+					},
+					{
+						name:_this.$t('status.ssid'),
+						value:data.ssid3
+					},
+					{
+						name:_this.$t('status.band'),
+						value:_this.setWirelessMode(data.band)
+					},
+					{
+						name:_this.$t('status.encryption_mode'),
+						value:passmsg
+					},
+					{
+						name:_this.$t('status.mac'),
+						value:data.bssid3
+					}
+				];
+                _this.ssid2Data = arr2;
+            }
+        });
+        
+        /*********************************client table***************************************/
+        var postData = {};
+        postData["wifiIdx"] = _this.wifiIdx;
+        uiPost.getWiFiStaInfo(postData,function(data1) {
+            _this.staNum = data1.length;
+            if(data1.length != 0){
+                _this.clientData = data1.slice(0);
+            }
+        });
+    },
+    methods:{
+        setWirelessMode:function (mode) {
+			var modeNum = Number(mode);
+            switch(modeNum){
+                case 0: return "2.4GHz (B+G)";      break;
+                case 1: return  "2.4GHz (B)";       break;
+                case 4: return  "2.4GHz (G)";       break;
+                case 6: return  "2.4GHz (N)";       break;
+                case 9: return "2.4GHz (B+G+N)";    break;
+                case 2: return "802.11A";           break;
+                case 8: return "802.11A/ N";        break;
+                case 14: return "802.11A/ N/ AC";    break;
+                default: return  "2.4GHz (B+G+N)";  break;
+            }
+        }
+    }
+};
+</script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>

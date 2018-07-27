@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title></title>
+  <link rel="stylesheet" href="/plugin/iview/styles/iview.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div id="app"></div>
+
+<script type="text/x-template" id="main">
+<Col class="cs-container" span="20" >
+    <slot name="breadcrumb"></slot>
+    <!-- 这个不能删除，用于面包屑显示 -->
+    <div class="cs-content">
+        <Row>
+          <Col :xs="globalConfig.xs" :sm="globalConfig.sm" :md="globalConfig.md" :lg="globalConfig.lg">
+            <Card>
+             <Alert>
+              <!-- <h3>设置</h3> -->
+              {{ $t('wan.help') }}
+             </Alert>
+            <Form ref="formValidate" :model="formValidate" :rules="ruleValidate" :label-width="globalConfig.labelWith" label-position="left">
+              <FormItem :label="$t('wan.status')">
+                  <div>
+                    {{wanModeMsg}}
+                    <Tag color="blue" v-show="this.wanOn">{{ $t('wan.connected') }}</Tag>
+                    <Tag color="yellow" v-show="this.wanOff">{{ $t('wan.disconnected') }}</Tag>
+                  </div>
+              </FormItem>
+              <FormItem :label="$t('wan.wanmode')">
+                 <RadioGroup v-model="formValidate.wanMode" type="button" @on-change="updateWanMode">
+                  <Radio label="0" v-if="globalConfig.WanTypeList_STATIC">{{ $t('wan.static_ip') }}</Radio>
+                  <Radio label="1" v-if="globalConfig.WanTypeList_DHCP">DHCP</Radio>
+                  <Radio label="3" v-if="globalConfig.WanTypeList_PPPOE">PPPoE</Radio>
+                </RadioGroup>
+              </FormItem>
+              <Col v-if="formValidate.wanMode == 0">
+                <FormItem :label="$t('wan.ip')" prop="staticIp">
+                    <Input v-model="formValidate.staticIp" ></Input>
+                </FormItem>
+                <FormItem :label="$t('wan.mask')" prop="staticMask">
+                    <Input v-model="formValidate.staticMask" ></Input>
+                </FormItem>
+                <FormItem :label="$t('wan.gateway')" prop="staticGw">
+                    <Input v-model="formValidate.staticGw" ></Input>
+                </FormItem>
+                <FormItem label="MTU" prop="staticMtu">
+                  <Input v-model.number="formValidate.staticMtu" :maxlength="4"></Input>
+                  <span>(576~1500)</span>
+                </FormItem>
+              </Col>
+              <Col v-if="formValidate.wanMode == 1">
+                <FormItem label="MTU" prop="dhcpMtu">
+                  <Input v-model="formValidate.dhcpMtu" :maxlength="4"></Input>
+                  <span>(576~1500)</span>
+                </FormItem>
+              </Col>
+              <Col v-if="formValidate.wanMode == 3">
+                <FormItem :label="$t('wan.user')" prop="pppoeUser">
+                    <Input v-model="formValidate.pppoeUser" :maxlength="32"></Input>
+                </FormItem>
+                <FormItem :label="$t('wan.pass')" prop="pppoePass">
+                    <Input v-model="formValidate.pppoePass" :type="pwdType" @on-focus="pwdFocus" @on-blur="pwdBlur" :maxlength="32"></Input>
+                </FormItem>
+                <FormItem :label="$t('wan.spec')" >
+                    <Select v-model="formValidate.pppoeSpec" :key="$t('wan.spec')">
+                      <Option value="0">{{ $t('wan.none') }}</Option> 
+                      <Option value="1">{{ $t('wan.spec') }} 1</Option> 
+                      <Option value="2">{{ $t('wan.spec') }} 2</Option> 
+                      <Option value="3">{{ $t('wan.spec') }} 3</Option>
+                    </Select>
+                </FormItem>
+                <FormItem :label="$t('wan.connection_mode')">
+                  <Select v-model="formValidate.pppoeOpMode" :key="$t('wan.connection_mode')">
+                    <Option value="0">{{ $t('wan.auto') }}</Option> 
+                    <Option value="2">{{ $t('wan.manual') }}</Option> 
+                  </Select>
+                </FormItem>
+                <FormItem v-show="formValidate.pppoeOpMode == 2">
+                  <ButtonGroup>
+                    <Button @click="pppConnectClick(0)" >{{ $t('wan.connect') }}</Button>
+                    <Button @click="pppConnectClick(1)" >{{ $t('wan.disconnect') }}</Button>
+                  </ButtonGroup>
+                </FormItem>
+                <FormItem label="MTU" prop="pppoeMtu">
+                    <Input v-model="formValidate.pppoeMtu" :maxlength="4" ></Input>
+                    <span>(576-1492)</span>
+                </FormItem>
+              </Col>
+              <FormItem :label="$t('wan.dns_mode')" v-show="formValidate.wanMode != 0">
+                <div class="server"><Select v-model="formValidate.dnsMode" :key="$t('wan.dns_mode')">
+                  <Option value="0">{{ $t('wan.auto_dns') }}</Option> 
+                  <Option value="1">{{ $t('wan.manual_dns') }}</Option> 
+                </Select></div>
+              </FormItem>
+              <Col v-if="formValidate.dnsMode == 1">
+              <FormItem :label="$t('wan.pri_dns')" prop="priDns">
+                <Input v-model="formValidate.priDns" ></Input>
+              </FormItem>
+              <FormItem :label="$t('wan.sec_dns')" prop="secDns">
+                <Input v-model="formValidate.secDns" ></Input>
+              </FormItem>
+              </Col>
+              <FormItem :label="$t('wan.mac')" prop="mac">
+                <Row>
+                  <Col span="14"><Input v-model="formValidate.mac" ></Input></Col>
+                  <Col span="9" offset="1">
+                    <ButtonGroup>
+                      <Button @click="changeMac(1)" :disabled="cloneMacBtn">{{ $t('wan.clone') }}</Button>
+                      <Button @click="changeMac(0)" :disabled="defaultMacBtn">{{ $t('wan.default') }}</Button>
+                    </ButtonGroup>
+                  </Col>
+                </Row>
+              </FormItem>
+              <!-- btn -->
+              <FormItem>
+                  <Button type="primary" @click="handleSubmit('formValidate')">{{ $t('common.apply') }}</Button>
+              </FormItem>
+            </Form>
+            </Card>
+        </Col>
+        </Row>
+    </div>
+    <!-- 这个不能删除，用于底部显示 -->
+    <slot name="footer"></slot>
+</Col>
+</script>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/iview/iview.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/layout.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+var cs_main = {
+  template:"#main",
+  data:function(){
+    var _this = this;
+    return {
+      globalConfig:globalConfig,
+      percent:0,
+      macCloneEnabled:'',
+      operationMode:'',
+      wanAutoDetectBt:'',
+      pppoeSpecBt:'',
+      lanIp:'',
+	  pwdType:'password',
+      formValidate: {
+          wanMode:'',
+          staticIp:'',
+          staticMask:'',
+          staticGw:'',
+          staticMtu:1492,
+          dhcpMtu:'',
+          pppoeUser:'',
+          pppoePass:'',
+          pppoeSpec:0,
+          pppoeOpMode:0,
+          pppoeMtu:0,
+          pppoeTime:60,
+          dnsMode:'',
+          priDns:'',
+          secDns:'',
+          mac:'',
+          wanDefMac:'',
+          cloneMac:'',
+          hostName:''
+      },
+      dnsMode:'',
+      wanMode:''
+    }
+  },
+  computed:{
+    ruleValidate: function(){
+		var _this = this;
+		return {
+          staticIp: [
+              { required: true, message: this.$t('wan.msg1',[this.$t('wan.ip')]), trigger: 'blur' },
+              { validator:function(r, v, f) {
+                var _s = cs.ip(v);
+                if(1 == _s) {
+                  f(_this.$t('wan.ip')+_this.$t('wan.msg20'));
+                }else if(2 == _s) {
+                  f(_this.$t('wan.ip')+_this.$t('wan.msg2'));
+                }else if(3 == _s) {
+                  f(_this.$t('wan.ip')+_this.$t('wan.msg3'));
+                }else if(4 == _s) {
+                  f(_this.$t('wan.ip')+_this.$t('wan.msg4'));
+                }else{
+                  f();
+                }
+              },trigger: 'blur' }
+          ],
+          staticMask: [
+              { validator:function(r, v, f) {
+                var _s = cs.mask(v);
+                if(0 == _s) {
+                  f(_this.$t('wan.mask')+_this.$t('wan.msg1'));
+                }else if(1 == _s) {
+                  f(_this.$t('wan.msg5'));
+                }else{
+                  f();
+                }
+              },trigger: 'blur' }
+          ],
+          staticGw: [
+              { validator:function(r, v, f) {
+                var _s = cs.ip(v);
+                if(0 == _s) {
+                  f(_this.$t('wan.gateway')+_this.$t('wan.msg1'));
+                }else if(1 == _s) {
+                  f(_this.$t('wan.gateway')+_this.$t('wan.msg20'));
+                }else if(2 == _s) {
+                  f(_this.$t('wan.gateway')+_this.$t('wan.msg2'));
+                }else if(3 == _s) {
+                  f(_this.$t('wan.gateway')+_this.$t('wan.msg3'));
+                }else if(4 == _s) {
+                  f(_this.$t('wan.gateway')+_this.$t('wan.msg4'));
+                }else{
+                  if(
+                       _this.formValidate.staticGw.split('.')[0] != _this.formValidate.staticIp.split('.')[0]
+                    || _this.formValidate.staticGw.split('.')[1] != _this.formValidate.staticIp.split('.')[1] 
+                    || _this.formValidate.staticGw.split('.')[2] != _this.formValidate.staticIp.split('.')[2]
+                  ){
+                    f(_this.$t('wan.msg6'));
+                  }
+                  if(_this.formValidate.staticGw == _this.formValidate.staticIp){
+                    f(_this.$t('wan.msg7'));
+                  }
+                  f();
+                }
+              },trigger: 'blur' }
+          ],
+          staticMtu: [
+              { validator:function(r, v, f) {
+                var _s = cs.num_range(v,576,1500);
+                if(0 == _s) {
+                  f(_this.$t('wan.msg8'));
+                }else if(1 == _s) {
+                  f(_this.$t('wan.msg9'));
+                }else if(2 == _s) {
+                  f(_this.$t('wan.msg_mtu',[576,1500]));
+                }else{
+                  f();
+                }
+              },trigger: 'blur' }
+          ],
+          dhcpMtu: [
+            { validator:function(r, v, f) {
+              var _s = cs.num_range(v,576,1500);
+              if(0 == _s) {
+                f(_this.$t('wan.msg8'));
+              }else if(1 == _s) {
+                f(_this.$t('wan.msg9'));
+              }else if(2 == _s) {
+                f(_this.$t('wan.msg_mtu',[576,1500]));
+              }else{
+                f();
+              }
+            },trigger: 'blur' }
+          ],
+          pppoeUser: [
+            { validator:function(r, v, f) {
+              var _s = cs.string(v);
+              if(0 == _s) {
+                f(_this.$t('wan.msg12'));
+              }else if(1 == _s) {
+                f(_this.$t('wan.msg13'));
+              }else{
+                f();
+              }
+            },trigger: 'blur' }
+          ],
+          pppoePass: [
+            { validator:function(r, v, f) {
+              var _s = cs.string(v);
+              if(0 == _s) {
+                f(_this.$t('wan.msg14'));
+              }else if(1 == _s) {
+                f(_this.$t('wan.msg15'));
+              }else{
+                f();
+              }
+            },trigger: 'blur' }
+          ],
+          pppoeMtu: [
+            { validator:function(r, v, f) {
+              var _s = cs.num_range(v,576,1492);
+              if(0 == _s) {
+                f(_this.$t('wan.msg8'));
+              }else if(1 == _s) {
+                f(_this.$t('wan.msg9'));
+              }else if(2 == _s) {
+                f(_this.$t('wan.msg_mtu',[576,1492]));
+              }else{
+                f();
+              }
+            },trigger: 'blur' }
+          ],
+          priDns: [
+            { validator:function(r, v, f) {
+              var _s = cs.ip(v);
+              if(0 == _s) {
+                f(_this.$t('wan.pri_dns')+_this.$t('wan.msg1'));
+              }else if(1 == _s) {
+                f(_this.$t('wan.pri_dns')+_this.$t('wan.msg20'));
+              }else if(2 == _s) {
+                f(_this.$t('wan.pri_dns')+_this.$t('wan.msg2'));
+              }else if(3 == _s) {
+                f(_this.$t('wan.pri_dns')+_this.$t('wan.msg3'));
+              }else if(4 == _s) {
+                f(_this.$t('wan.pri_dns')+_this.$t('wan.msg4'));
+              }else{
+                f();
+              }
+            },trigger: 'blur' }
+          ],
+          secDns: [
+            { validator:function(r, v, f) {
+              var _s = cs.ip(v);
+              if(_this.formValidate.secDns != ""){
+                  if(0 == _s) {
+                    f(_this.$t('wan.sec_dns')+_this.$t('wan.msg1'));
+                  }else if(1 == _s) {
+                    f(_this.$t('wan.sec_dns')+_this.$t('wan.msg20'));
+                  }else if(2 == _s) {
+                    f(_this.$t('wan.sec_dns')+_this.$t('wan.msg2'));
+                  }else if(3 == _s) {
+                    f(_this.$t('wan.sec_dns')+_this.$t('wan.msg3'));
+                  }else if(4 == _s) {
+                    f(_this.$t('wan.sec_dns')+_this.$t('wan.msg4'));
+                  }else{
+                    f();
+                  }
+              }
+              f();
+            },trigger: 'blur' }
+          ],
+          mac: [
+            { validator:function(r, v, f) {
+              var _s = cs.mac(v);
+              if(0 == _s) {
+                f(_this.$t('wan.msg19'));
+              }else if(1 == _s) {
+                f(_this.$t('wan.msg16'));
+              }else if(2 == _s) {
+                f(_this.$t('wan.msg17'));
+              }else if(3 == _s) {
+                f(_this.$t('wan.msg18'));
+              }else{
+                f();
+              }
+            },trigger: 'blur' }
+          ]
+		}
+    },
+    wanModeMsg:function(){
+        if(this.wanMode == '0'){
+            return this.$t('wan.static_ip');
+        }else if(this.wanMode == '1'){
+            return "DHCP";
+        }else if(this.wanMode == '3'){
+            return "PPPoE";
+        }
+    },
+    cloneMacBtn:function(){
+      return this.macCloneEnabled == 1;
+    },
+    defaultMacBtn:function(){
+      return this.macCloneEnabled == 0;
+    }
+  },
+  created:function() {
+    var _this = this;
+    this.$Spin.show();
+    uiPost.getWanConfig(function(data) {
+        if(data.wanConnStatus == 'connected'){
+			_this.wanOn = true;
+			_this.wanOff = false;
+		}else{
+			_this.wanOn = false;
+			_this.wanOff = true;
+		}
+        _this.lanIp = data.lanIp;
+        _this.l2tpBt = data.l2tpBt;
+        _this.pptpBt = data.pptpBt;
+        _this.wanMode = data.wanMode;
+
+        _this.dnsMode = data.dnsMode
+        _this.formValidate.wanMode = _this.wanMode;
+        _this.formValidate.staticIp = data.staticIp;
+        _this.formValidate.staticMask = data.staticMask;
+        _this.formValidate.staticGw = data.staticGw;
+        _this.formValidate.staticMtu = data.staticMtu;
+
+        _this.formValidate.dhcpMtu = data.dhcpMtu;
+        _this.formValidate.hostName = data.hostName;
+
+        _this.formValidate.pppoeUser = data.pppoeUser;
+        _this.formValidate.pppoePass = data.pppoePass;
+        _this.formValidate.pppoeMtu = data.pppoeMtu;
+        _this.formValidate.pppoeSpec = data.pppoeSpecType;
+        _this.formValidate.pppoeOpMode = data.pppoeOpMode;
+        _this.formValidate.pppoeTime = data.pppoeTime;
+
+        _this.formValidate.dnsMode = data.dnsMode;
+        _this.formValidate.priDns = data.priDns;
+        if(data.secDns == "0.0.0.0"){
+           _this.formValidate.secDns = ""; 
+        }else{
+            _this.formValidate.secDns = data.secDns;
+        } 
+        _this.formValidate.wanDefMac = data.wanDefMac;
+        _this.formValidate.cloneMac = data.macCloneMac;
+
+        _this.formValidate.mac = data.macCloneEnabled == 1 ? _this.formValidate.cloneMac : _this.formValidate.wanDefMac;
+
+        _this.macCloneEnabled = data.macCloneEnabled;
+        _this.operationMode = data.operationMode;
+        _this.wanAutoDetectBt = data.wanAutoDetectBt;
+        _this.pppoeSpecBt = data.pppoeSpecBt;
+        _this.$Spin.hide();
+    });
+      
+  },
+  methods:{
+    handleSubmit: function(name) {
+        var _this = this;
+        this.$refs[name].validate(function(valid){
+            if (valid) {
+              var postVar = {};
+              if (0 == _this.formValidate.wanMode) {
+                postVar.staticIp = _this.formValidate.staticIp;
+                postVar.staticMask = _this.formValidate.staticMask;
+                postVar.staticGw = _this.formValidate.staticGw;
+                postVar.staticMtu = _this.formValidate.staticMtu;
+              }else if (1 == _this.formValidate.wanMode) {
+                postVar.hostname = _this.formValidate.hostName;
+                postVar.dhcpMtu = _this.formValidate.dhcpMtu;
+              }else if (3 == _this.formValidate.wanMode) {
+                postVar.pppoeUser = _this.formValidate.pppoeUser;
+                postVar.pppoePass = _this.formValidate.pppoePass;
+                postVar.pppoeSpecType = _this.formValidate.pppoeSpec;
+                postVar.pppoeMtu = _this.formValidate.pppoeMtu;
+                postVar.pppoeOpMode = _this.formValidate.pppoeOpMode;
+                postVar.pppoeTime = "";
+              }
+              postVar.wanMode = _this.formValidate.wanMode;
+              postVar.macCloneEnabled = _this.macCloneEnabled;
+              postVar.macCloneMac = _this.formValidate.mac;
+              if (_this.formValidate.dnsMode == "1"){
+                postVar.dnsMode = _this.formValidate.dnsMode;
+                postVar.priDns = _this.formValidate.priDns;
+                postVar.secDns = _this.formValidate.secDns;
+              }
+
+              uiPost.setWanConfig(postVar,function(data) {
+                  var time = 30;
+                  _this.$Modal.success({
+                    loading:true,
+                    render: function(h) {
+                      return h('div',[
+                        _this.$t('common.loading'),
+                        h('Progress',{
+                          attrs:{ percent:_this.percent }
+                        })
+                      ])
+                    },
+                  });
+                  var percentTimer = setInterval(function(){
+                    if (_this.percent>=100) {
+                      clearInterval(percentTimer);
+                      location.href = location.href;
+                    }
+                    _this.percent++;
+                  },cs.getTimer(time));
+              });
+            }
+        })
+    },
+    handleReset: function(name) {
+        this.$refs[name].resetFields();
+    },
+    show:function () {
+      this.$Spin.show();
+    },
+    next:function() {
+      if (this.current == 3) {
+          this.current = 0;
+      } else {
+          this.current += 1;
+      }
+    },
+    updateWanMode:function(){
+        if(this.formValidate.wanMode == 0){
+            this.formValidate.dnsMode = "1";
+        }else if(this.formValidate.wanMode == 1){
+            if(this.wanMode == 1 && this.dnsMode == 1){
+                this.formValidate.dnsMode = "1";
+            }else{
+                this.formValidate.dnsMode = "0";
+            }
+        }else if(this.formValidate.wanMode == 3){
+            if(this.wanMode == 3 && this.dnsMode == 1){
+                this.formValidate.dnsMode = "1";
+            }else{
+                this.formValidate.dnsMode = "0";
+            }
+        }
+    },
+    changeMac:function(val){
+      var _this = this;
+      if(1 == val){
+          this.macCloneEnabled = 1;
+          uiPost.getStationMacByIp(function(data){
+              _this.formValidate.mac = data.stationMac;
+          })
+      }else{
+          this.macCloneEnabled = 0;
+          this.formValidate.mac = this.formValidate.wanDefMac;
+      }
+    },
+    pppConnectClick:function(val){
+      var _this = this;
+      var postVar = {};
+      postVar.wanMode = this.formValidate.wanMode;
+      postVar.pppoeUser = this.formValidate.pppoeUser;
+      postVar.pppoePass = this.formValidate.pppoePass;
+      postVar.pppoeSpecType = this.formValidate.pppoeSpec;
+      postVar.pppoeMtu = this.formValidate.pppoeMtu;
+      postVar.pppoeOpMode = this.formValidate.pppoeOpMode;
+      postVar.pppoeTime = this.formValidate.pppoeTime;
+      postVar.macCloneEnabled = this.macCloneEnabled;
+      postVar.macCloneMac = this.formValidate.mac;
+      if(parseInt(val) == 0){
+          postVar.pppConnect = "1";
+      }else if(parseInt(val) == 1){
+          postVar.pppDisconnect = "1";
+      }
+      postVar.dnsMode = this.formValidate.dnsMode;
+      if(postVar.dnsMode == 1){
+          postVar.priDns = this.formValidate.priDns;
+          if(this.formValidate.secDns != ""){
+              postVar.secDns = this.formValidate.secDns;
+          }else{
+              postVar.secDns = "";
+          } 
+      }
+      uiPost.setWanConfig(postVar);
+      var time = 60;
+      _this.$Modal.success({
+        loading:true,
+        render: function(h) {
+          return h('div',[
+            _this.$t('common.loading'),
+            h('Progress',{
+              attrs:{ percent:_this.percent }
+            })
+          ])
+        },
+      });
+      var percentTimer = setInterval(function(){
+        if (_this.percent>=100) {
+          clearInterval(percentTimer);
+          location.href = location.href;
+        }
+        _this.percent++;
+      },cs.getTimer(time));
+    },
+	pwdFocus:function(){
+		this.pwdType = 'text';
+	},
+	pwdBlur:function(){
+		this.pwdType = 'password';
+	}
+  }
+};
+</script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title></title>
+  <link rel="stylesheet" href="/plugin/iview/styles/iview.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div id="app"></div>
+
+<script type="text/x-template" id="main">
+    <Col class="cs-container" span="20" >
+    <slot name="breadcrumb" :breadcrumb="[$t('menu.server'),$t('menu.l2tp_server')]"></slot>
+    <!-- 这个不能删除，用于面包屑显示 -->
+    <div class="cs-content">
+        <Row>
+            <Col :xs="globalConfig.xs" :sm="globalConfig.sm" :md="globalConfig.md" :lg="globalConfig.lg">
+            <Card>
+                 <Alert>
+                    {{ $t('l2tp.help') }}
+                </Alert>
+                <Form ref="formValidate" :model="formValidate" :rules="ruleValidate" :label-width="globalConfig.labelWith" label-position="left">
+                    <FormItem :label="$t('l2tp.server')">
+                        <i-switch v-model="formValidate.status" size="large">
+                            <span slot="open">{{ $t('common.on') }}</span>
+                            <span slot="close">{{ $t('common.off') }}</span>
+                        </i-switch>
+                    </FormItem>
+                    <Col v-show="formValidate.status">
+                    <FormItem :label="$t('l2tp.ip_start')" prop="ipStart">
+                        <Input v-model="formValidate.ipStart"></Input>
+                    </FormItem>
+                    <FormItem :label="$t('l2tp.ip_end')" prop="ipEnd">
+                        <Input v-model="formValidate.ipEnd"></Input>
+                    </FormItem>
+                    <FormItem :label="$t('l2tp.server_addr')" prop="serverAddr">
+                        <Input v-model="formValidate.serverAddr"></Input>
+                    </FormItem>
+                    <FormItem :label="$t('l2tp.pri_dns')" prop="priDns">
+                        <Input v-model="formValidate.priDns"></Input>
+                    </FormItem>
+                    <FormItem :label="$t('l2tp.sec_dns')" prop="secDns">
+                        <Input v-model="formValidate.secDns"></Input>
+                    </FormItem>
+                    <FormItem :label="$t('l2tp.server_mtu')" prop="servermtu">
+                    <Input v-model="formValidate.servermtu" :maxlength="4"></Input>
+                    <span>(1400~1500)</span>
+                    </FormItem>
+                    <FormItem :label="$t('l2tp.server_mru')" prop="servermru">
+                        <Input v-model="formValidate.servermru" :maxlength="4"></Input>
+                        <span>(1400~1500)</span>
+                    </FormItem>
+                    <!-- <FormItem :label="$t('l2tp.wins_server_addr')" prop="winsServerAddr">
+                        <Input v-model="formValidate.winsServerAddr"></Input>
+                    </FormItem>
+                    <FormItem :label="$t('l2tp.auth_type')">
+                        <Select v-model="formValidate.encryptMethod" >
+                            <Option value="chap">chap</Option>
+                            <Option value="pap">pap</Option>
+                        </Select>
+                    </FormItem> -->
+                    <!-- btn -->
+                    </Col>
+                    <FormItem>
+                        <Button type="primary" @click="handleSubmit('formValidate')">{{ $t('common.apply') }}</Button>
+                    </FormItem>
+                </Form>
+            </Card>
+            </Col>
+        </Row>
+    </div>
+    <!-- 这个不能删除，用于底部显示 -->
+    <slot name="footer"></slot>
+    </Col>
+</script>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/iview/iview.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/layout.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+    var cs_main = {
+        template:"#main",
+        data:function(){
+            var _this = this;
+            return {
+                globalConfig:globalConfig,
+                applyLoading:false,
+                status:false,
+                formValidate: {
+                    status: false,
+                    ipStart:'',
+                    ipEnd:'',
+                    serverAddr:'',
+                    priDns:'',
+                    secDns:'',
+                    //winsServerAddr:'',
+                    //encryptMethod:'chap',
+                    servermtu:'',
+                    servermru:''
+                }
+            }
+        },
+        computed:{
+            ruleValidate:function () {
+                var _this = this;
+                return {
+                    ipStart: [
+                        { required: true, message: this.$t('l2tp.msg1'), trigger: 'blur' },
+                        { validator:function(r, v, f) {
+                            var _s = cs.ip(v);
+                            if(_s != 99) {
+                                if(0 == _s){
+                                    f(_this.$t('l2tp.msg1'));
+                                }else{
+                                    f(_this.$t('l2tp.msg2'));
+                                }
+                            }else{
+                                f();
+                            }
+                        },trigger: 'blur' }
+                    ],
+                    ipEnd: [
+                        { validator:function(r, v, f) {
+                            var _s = cs.ip(v);
+                            if(_s != 99) {
+                                if(0 == _s){
+                                    f(_this.$t('l2tp.msg3'));
+                                }else{
+                                    f(_this.$t('l2tp.msg4'));
+                                }
+                            }else{
+                                var _start = cs.ip2int(_this.formValidate.ipStart);
+                                var _end = cs.ip2int(v);
+                                if(_start > _end){
+                                    f(_this.$t('l2tp.msg12'));
+                                }
+                               /* if((_end - _start > 200)){
+                                    f(_this.$t('l2tp.msg13'));
+                                }*/
+                                f();
+                                f();
+                            }
+                        },trigger: 'blur' }
+                    ],
+                    serverAddr: [
+                        { validator:function(r, v, f) {
+                            var _s = cs.ip(v);
+                            if(_s != 99) {
+                                if(0 == _s){
+                                    f(_this.$t('l2tp.msg5'));
+                                }else{
+                                    f(_this.$t('l2tp.msg6'));
+                                }
+                            }else{
+                                f();
+                            }
+                        },trigger: 'blur' }
+                    ],
+                    priDns: [
+                        { validator:function(r, v, f) {
+                            var _s = cs.ip(v);
+                            if(_s != 0) {
+                                if(99 != _s){
+                                    f(_this.$t('l2tp.msg7'));
+                                }else{
+                                    f();
+                                }
+                            }else{
+                                f(_this.$t('l2tp.msg11'));
+                            }
+                        },trigger: 'blur' }
+                    ],
+                    secDns: [
+                        { validator:function(r, v, f) {
+                            var _s = cs.ip(v);
+                            if(_s != 0) {
+                                if(99 != _s){
+                                    f(_this.$t('l2tp.msg8'));
+                                }else{
+                                    f();
+                                }
+                            }else{
+                                f();
+                            }
+                        },trigger: 'blur' }
+                    ],
+                    winsServerAddr: [
+                        { validator:function(r, v, f) {
+                            var _s = cs.ip(v);
+                            if(_s != 0) {
+                                if(99 != _s){
+                                    f(_this.$t('l2tp.msg9'));
+                                }else{
+                                    f();
+                                }
+                            }else{
+                                f();
+                            }
+                        },trigger: 'blur' }
+                    ],
+                    servermtu: [
+                        { required: true, message: this.$t('l2tp.server_mtu')+this.$t('l2tp.msg14'), trigger: 'blur' },
+                        { validator:function(r, v, f) {
+                            var _s = cs.num_range(v,1400,1500);
+                            if(1 == _s) {
+                              f(_this.$t('l2tp.server_mtu')+_this.$t('l2tp.msg15'));
+                            }else if(2 == _s) {
+                              f(_this.$t('l2tp.msg_servermtu',[1400,1500]));
+                            }else{
+                              f();
+                            }
+                          },trigger: 'blur' }
+                        ],
+                    servermru: [
+                        { required: true, message: this.$t('l2tp.server_mru')+this.$t('l2tp.msg14'), trigger: 'blur' },
+                        { validator:function(r, v, f) {
+                            var _s = cs.num_range(v,1400,1500);
+                            if(1 == _s) {
+                              f(_this.$t('l2tp.server_mru')+_this.$t('l2tp.msg15'));
+                            }else if(2 == _s) {
+                              f(_this.$t('l2tp.msg_servermru',[1400,1500]));
+                            }else{
+                              f();
+                            }
+                          },trigger: 'blur' }
+                        ]
+                };
+            }
+        },
+        created:function() {
+            var _this = this;
+            uiPost.getL2tpdConfig(function(data) {
+                _this.formValidate.status = data.Enabled == 1 ?true :false;
+                _this.formValidate.ipStart = data.startip;
+                _this.formValidate.ipEnd = data.endip;
+                _this.formValidate.serverAddr = data.localip;
+                _this.formValidate.priDns = data.wanpridns;
+                _this.formValidate.secDns = data.wansecdns;
+                //_this.formValidate.winsServerAddr = data.wins;
+                _this.formValidate.servermtu = data.servermtu;
+                _this.formValidate.servermru = data.servermru;
+               // _this.formValidate.encryptMethod = data.authType;
+            });
+        },
+        methods:{
+            handleSubmit: function(name) {
+                var _this = this;
+                _this.$refs[name].validate(function(valid){
+                    if (valid) {
+                        var postVar = {};        
+                        if(true == _this.formValidate.status){
+                            postVar.Enabled = 1;
+                            postVar.localip = _this.formValidate.serverAddr;
+                            postVar.startip = _this.formValidate.ipStart;
+                            postVar.endip = _this.formValidate.ipEnd;
+                            postVar.wanpridns = _this.formValidate.priDns;
+                            postVar.wansecdns = _this.formValidate.secDns;
+                            //postVar.wins = _this.formValidate.winsServerAddr;
+                            //postVar.authType = _this.formValidate.encryptMethod;
+                            postVar.servermtu = _this.formValidate.servermtu;
+                            postVar.servermru = _this.formValidate.servermru;
+                        }else
+                            postVar.Enabled = 0;
+                        uiPost.setL2tpdConfig(postVar,function(data){
+                            _this.$Message.success({content:_this.$t('l2tp.set_success'),onClose:function(){
+                                _this.applyLoading = false;
+                            }});
+                            var percentTimer = setInterval(function(){
+                                clearInterval(percentTimer);
+                                location.href=location.href;
+                            },cs.getTimer(200));
+                        });
+                    }
+                })
+            }
+        }
+    };
+</script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>

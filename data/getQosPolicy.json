@@ -1,0 +1,27 @@
+{
+  "http": "0",
+  "http_download": "0",
+  "https": {
+    "level": "2",
+    "list": [
+      {
+        "url": "www.baotao.com"
+      },
+      {
+        "url": "www.tmall.com"
+      },
+      {
+        "url": "www.baidu.com"
+      },
+      {
+        "url": "www.zhihu.com"
+      }
+    ]
+  },
+  "qq": "1",
+  "small_packet": "0",
+  "p2p": "3",
+  "other": "0",
+  "priorityMode":"4",
+  "enable":"1"
+}

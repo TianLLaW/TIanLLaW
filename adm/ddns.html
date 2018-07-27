@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title></title>
+  <link rel="stylesheet" href="/plugin/iview/styles/iview.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div id="app"></div>
+
+<script type="text/x-template" id="main">
+<Col class="cs-container" span="20" >
+    <slot name="breadcrumb"></slot>
+    <!-- 这个不能删除，用于面包屑显示 -->
+    <div class="cs-content">
+        <Row>
+          <Col :xs="globalConfig.xs" :sm="globalConfig.sm" :md="globalConfig.md" :lg="globalConfig.lg">
+            <Card>
+            <Col>
+                <Alert>
+                    {{ $t('ddns.help') }}
+                </Alert>
+            </Col>
+            <Form ref="formValidate" :model="formValidate" :rules="ruleValidate" :label-width="globalConfig.labelWith" label-position="left">
+                <FormItem :label="$t('ddns.title')">
+                    <i-switch v-model="formValidate.status" size="large" >
+                        <span slot="open">{{ $t('common.enabled') }}</span>
+                        <span slot="close">{{ $t('common.disabled') }}</span>
+                    </i-switch>
+                </FormItem>
+                <Col v-show="formValidate.status" >
+                <div class="server"><FormItem :label="$t('ddns.service')">
+                    <i-select v-model="formValidate.ddnsProvider">
+                      <Option value="dyndns.org">DynDNS</Option> 
+                      <Option value="no-ip.com">No-IP</Option>
+                      <Option value="3322.org">www.3322.org</Option>
+					  <Option v-show="this.flag" value="oray.com">www.oray.com</Option>
+                    </i-select>
+                    <a v-show="formValidate.ddnsProvider == 'dyndns.org'" href="http://dyn.com/dns/" target="_blank">{{ $t('ddns.gotoapply') }}</a>
+                    <a v-show="formValidate.ddnsProvider == 'no-ip.com'" href="http://www.no-ip.com/newUser.php/" target="_blank">{{ $t('ddns.gotoapply') }}</a>
+                    <a v-show="formValidate.ddnsProvider == '3322.org'" href="http://www.pubyun.com/accounts/signup/" target="_blank">{{ $t('ddns.gotoapply') }}</a>
+					<a v-show="formValidate.ddnsProvider == 'oray.com'" href="https://console.oray.com/passport/register.html" target="_blank">{{ $t('ddns.gotoapply') }}</a>
+                </FormItem></div>
+                <FormItem :label="$t('ddns.domainname')" prop="ddnsDomain" v-show="formValidate.ddnsProvider != 'oray.com' && this.formValidate.ddnsProvider == 'no-ip.com'">
+                    <Input v-model="formValidate.ddnsDomain" :disabled="showDdnsDomain"></Input>
+                </FormItem>
+                <FormItem :label="$t('ddns.domainname')" prop="ddnsDomain" v-show="formValidate.ddnsProvider != 'oray.com' && this.formValidate.ddnsProvider != 'no-ip.com'">
+                    <Input v-model="formValidate.ddnsDomain" :maxlength="32"></Input>
+                </FormItem>
+                <FormItem :label="$t('ddns.username')" prop="ddnsAccount">
+                    <Input v-model="formValidate.ddnsAccount" :maxlength="32"></Input>
+                </FormItem>
+                <FormItem :label="$t('ddns.password')" prop="ddnsPassword">
+                    <Input v-model="formValidate.ddnsPassword" :maxlength="32"></Input>
+                </FormItem>
+                <Col v-show="ddnsEnabled == 1">
+                    <FormItem :label="$t('ddns.status')">
+                        <span v-if="ddnsStatus =='1'">{{ $t('ddns.ddnssuccess') }}</span>
+                        <span v-else>{{ $t('ddns.ddnsfail') }}</span>
+                    </FormItem>
+					<FormItem :label="$t('ddns.domainname')" v-if="formValidate.ddnsProvider == 'oray.com'">
+                        <span>{{ orayDomainName }}</span>
+                    </FormItem>
+                    <FormItem :label="$t('ddns.ddnsinfo')">
+                        <span>{{ ddnsIpMsg }}</span>
+                    </FormItem>
+                </Col>
+                </Col>
+                <FormItem>
+                      <Button type="primary" @click="handleSubmit('formValidate')" :loading="applyLoading">{{ $t('ddns.apply') }}</Button>
+                </FormItem>
+            </Form>
+            </Card>
+            <br>
+        </Col>
+        </Row>
+    </div>
+    <!-- 这个不能删除，用于底部显示 -->
+    <slot name="footer"></slot>
+</Col>
+</script>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/iview/iview.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/layout.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+var cs_main = {
+  template:"#main",
+  data:function(){
+    return {
+      globalConfig:globalConfig,
+      applyLoading:false,
+      formValidate: {
+          status:false,
+          ddnsProvider:'',
+          ddnsDomain:'',
+          ddnsAccount:'',
+          ddnsPassword:''
+      },
+      ddnsEnabled:'',
+      ddnsStatus:'',
+      ddnsIp:'',
+      flag:true
+    }
+  },
+  computed:{
+    showDdnsDomain:function () {
+        if(this.flag){
+            return true;
+        }else{
+            return false;
+        }
+    },
+    ruleValidate: function(){
+      var _this = this;
+      return {
+          ddnsDomain: [
+            { validator:function(r, v, f){
+                if(_this.formValidate.ddnsProvider != 'no-ip.com' && _this.flag == true){
+                    var _s = cs.string(v);
+                    if(_s == 0) {
+                        f(_this.$t('ddns.domainname')+_this.$t('ddns.msg1'));
+                    }else if(_s == 1) {
+                        f(_this.$t('ddns.domainname')+_this.$t('ddns.msg2'));
+                    }else{
+                      f();
+                    }
+                }else{
+                    f();
+                }
+              },trigger: 'blur'}
+          ],
+          ddnsAccount: [
+            { validator:function(r, v, f){
+                var _s = cs.string(v);
+                if(_s == 0) {
+                    f(_this.$t('ddns.username')+_this.$t('ddns.msg1'));
+                }else if(_s == 1) {
+                    f(_this.$t('ddns.username')+_this.$t('ddns.msg2'));
+                }else{
+                  f();
+                }
+              },trigger: 'blur'}
+          ],
+          ddnsPassword: [
+            { validator:function(r, v, f){
+                var _s = cs.string(v);
+                if(_s == 0) {
+                    f(_this.$t('ddns.password')+_this.$t('ddns.msg1'));
+                }else if(_s == 1) {
+                    f(_this.$t('ddns.password')+_this.$t('ddns.msg2'));
+                }else{
+                  f();
+                }
+              },trigger: 'blur'}
+          ],
+      }
+    },
+    ddnsIpMsg:function(){
+        if(this.ddnsStatus == "1" && this.ddnsIp != ""){
+            return this.$t("ddns.ipaddr")+this.ddnsIp;
+        }else{
+            return this.$t("ddns.ipaddr")+"0.0.0.0";
+        }
+    },
+	orayDomainName:function(){
+        return this.ddnsDomain;
+    }
+  },
+  created:function() {
+    var _this = this;
+    uiPost.getDDNSCfg(function(data){
+        _this.formValidate.status = data.ddnsEnabled == "1" ?true :false;
+        _this.ddnsEnabled = data.ddnsEnabled;
+        _this.formValidate.ddnsProvider = data.ddnsProvider;
+        _this.formValidate.ddnsDomain = data.ddnsDomain;
+        _this.formValidate.ddnsAccount = data.ddnsAccount;
+        _this.formValidate.ddnsPassword = data.ddnsPassword;
+		_this.ddnsDomain = data.ddnsDomain;
+        if(data.flag != undefined && data.flag == "1"){
+            _this.flag = false;
+        }else{
+            _this.flag = true;
+        }
+		
+        if(data.ddnsEnabled == "1"){
+            uiPost.getDDNSStatus(function(data){
+                _this.ddnsStatus = data.ddnsStatus;
+                _this.ddnsIp = data.ddnsIPAddr;
+            });
+        } 
+    })
+  },
+  methods:{
+    handleSubmit: function(name) {
+        var _this = this;
+        _this.applyLoading = true;
+        _this.$refs[name].validate(function(valid){
+            if (valid) {
+                var postVar = {};
+                postVar.ddnsEnabled = _this.formValidate.status ? "1" : "0";
+                postVar.ddnsProvider = _this.formValidate.ddnsProvider
+                postVar.ddnsDomain = _this.formValidate.ddnsDomain;
+                postVar.ddnsAccount = _this.formValidate.ddnsAccount;
+                postVar.ddnsPassword = _this.formValidate.ddnsPassword;
+                uiPost.setDDNSCfg(postVar,function(data){
+                    _this.applyLoading = false;
+                    location.href = location.href;
+                });
+            }else{
+				_this.applyLoading = false;
+			}
+        });
+    }
+  }
+};
+</script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>

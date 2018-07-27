@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title></title>    
+    <link rel="stylesheet" href="/plugin/iview/styles/iview.css">
+	<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div id="app"></div>
+
+<!-- main template -->
+<script type="text/x-template" id="main">
+<Col class="cs-container" span="20" >
+    <slot name="breadcrumb"></slot>
+    <!-- 这个不能删除，用于面包屑显示 -->
+    <div class="cs-content">
+        <row>
+          <Col :xs="globalConfig.xs" :sm="globalConfig.sm" :md="globalConfig.md" :lg="globalConfig.lg">
+            <Card>
+             <Alert>
+              <!-- <h3>设置</h3> -->
+              {{ $t('wds.help') }}
+             </Alert>
+            <Alert v-show="showWifiOff" type="error" show-icon>{{ $t('wds.msg10') }}</Alert>
+
+            <Form ref="formValidate" :model="formValidate" :rules="ruleValidate" :label-width="globalConfig.labelWith" label-position="left">
+                <FormItem :label="$t('static_dhcp.state')">
+                    <i-switch v-model="formValidate.status" size="large" @on-change="submitStatus" :disabled="showWifiOff">
+                        <span slot="open">{{ $t('common.enabled') }}</span>
+                        <span slot="close">{{ $t('common.disabled') }}</span>
+                    </i-switch>
+                </FormItem>
+				<Col v-show="formValidate.status" >
+				{{ $t('wds.add_rule') }}
+				<hr>
+				<br>
+				<FormItem :label="$t('wds.mac')" prop="mac">
+					<Row>
+						<Col span="19"><Input v-model="formValidate.mac" ></Input></Col>
+						<Col span="4" offset="1"><Button long @click="showClientList">{{ $t('wds.scan') }}</Button></Col>
+					</Row>
+				</FormItem>
+				<FormItem>
+					<Button type="primary" :loading="addWdsLoading" @click="handleSubmit('formValidate')">{{ $t('wds.add') }}</Button>
+				</FormItem>
+				</Col>
+            </Form>
+            </Card>
+            <br>
+        </Col>
+        </row>
+		<Row v-show="formValidate.status">
+		{{ $t('wds.wds_table') }}
+		<hr>
+            <Col class="cs-btn-del">
+            	<Poptip
+                    confirm
+                    :title="atonceSelectFalg?$t('wds.msg8'):$t('wds.msg7')"
+                    @on-popper-show="tableSelectAtonce"
+                    @on-ok="tableSelect(true)"
+                    @on-cancel="cancel">
+                    <Button size="small" type="error">{{ $t('macf.delete') }}</Button>
+                </Poptip>
+                <!-- <Button size="small" @click="tableSelect(true)" type="error">{{ $t('wds.delete') }}</Button> -->
+            </Col>
+            <Col >
+				<Table border ref="tableSelect" :columns="macfColumns" :data="wdsData"></Table>
+            </Col>
+        </Row>
+    </div>
+	<Modal
+        v-model="showModel"
+        :title="$t('wds.modal_title')"
+        @on-ok="ok"
+        @on-cancel="cancel"
+        :ok-text="$t('common.ok')"
+        :cancel-text="$t('common.cancel')"
+		width=1100>
+        <Table highlight-row :loading="arpLoading" :columns="arpColumns" :data="arpData" @on-current-change="selectTable">
+            <div slot="footer" style="display: none;"></div>
+        </Table>
+    </Modal>
+    <!-- 这个不能删除，用于底部显示 -->
+    <slot name="footer"></slot>
+</Col>
+</script>
+<!-- /.main template -->
+
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/iview/iview.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/layout.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+// 注册头文件
+var cs_main = {
+    template: '#main',
+    data:function() {
+		var _this = this;
+        return {
+            globalConfig:globalConfig,
+			addWdsLoading:false,
+			arpLoading:true,
+			atonceSelectFalg:false,
+			formValidate: {
+				status:false,
+				mac:''
+			},
+			mac:'',
+			arpData:[],
+			wdsData:[],
+			showModel:false,
+		    showWifiOff:false
+		}
+	},
+	computed:{
+		ruleValidate:function(){
+			var _this = this;
+			return {
+				mac: [
+					{ required: true, message: this.$t('wds.msg1',[this.$t('wds.mac')]), trigger: 'blur' },
+					{ validator:function(r, v, f) {
+					  var _s = cs.mac(v);
+					  if(_s == 1) {
+						f(_this.$t('wds.mac')+_this.$t('wds.msg2'));
+					  }else if(_s == 2) {
+						f(_this.$t('wds.mac')+_this.$t('wds.msg3'));
+					  }else if(_s == 3) {
+						f(_this.$t('wds.mac')+_this.$t('wds.msg4'));
+					  }else{
+						f();
+					  }
+					},trigger: 'blur' }
+				]
+			}
+		},
+		macfColumns: function() {
+			var _this = this;
+			return [{
+					type: 'selection',
+					key: 'idx',
+					width: '100',
+					sortable: true
+				},{
+					title: 'ID',
+					key: 'idx',
+					sortable: true
+				},{
+					title: this.$t('wds.mac'),
+					key: 'mac',
+					sortable: true
+				},{
+					title:this.$t('wds.select'),
+					key: 'idx',
+					align: 'center',
+					render: function(h, params) {
+						return h('Poptip',{
+							props: {
+								confirm: true,
+								title: _this.$t('macf.msg12'),
+								"ok-text":_this.$t('common.ok'),
+								"cancel-text":_this.$t('common.cancel')
+							},
+							on: {
+								"on-ok": function(){
+									_this.deleteData(params);
+								}
+							}
+						}, [
+							h('Button', {
+								props: {
+									type: 'error',
+									size: 'small'
+								},
+							}, _this.$t('wds.delete'))
+						]);
+					}
+				}]
+		},
+		arpColumns: function() {
+			var _this = this;
+			return [
+				{
+					title: _this.$t('wds.channel'),
+					key: 'channel',
+					sortable:true
+				},{
+					title: 'SSID',
+					key: 'ssid'
+				},{
+					title: 'MAC',
+					key: 'bssid'
+				},{
+					title: _this.$t('wds.cipher'),
+					key: 'cipher'
+				},{
+					title: _this.$t('wds.encrypt'),
+					key: 'encrypt'
+				},{
+					title: _this.$t('wds.band'),
+					key: 'band'
+				},{
+					title: _this.$t('wds.signal'),
+					key: 'signal',
+					sortable:true,
+					sortType:"desc"
+				}
+			];
+		}
+  },
+	created:function() {
+		var _this = this;
+		var postVar = {};
+		var location = window.location.href;
+    if(location.indexOf("5g") >= 0){
+      _this.wifiIdx = '0';  //5G
+    }else{
+      _this.wifiIdx = '1';  //2.4G
+    }
+    postVar.wifiIdx = _this.wifiIdx; 
+		uiPost.getWiFiWdsAddConfig(postVar,function(data){
+			if (0 == data.wifiOff) {
+                _this.showWifiOff = false;
+				_this.formValidate.status = data.wdsEnable == 1 ? true : false;
+            } else {
+                _this.showWifiOff = true;
+                _this.formValidate.status = false;
+            }
+			_this.macList = data.wdsList;
+			var maclist = _this.macList.split(';');
+			if(Number(maclist) != 0){
+				var num = 0;
+				var arr = [];
+				for(var i=0;i<maclist.length;i++){
+					num = i+1;
+					arr[i] = {};
+					arr[i].idx = num; 
+					arr[i].mac = maclist[i]; 
+				}
+				_this.wdsData = arr;
+			}
+		});
+	},
+    
+  	methods:{
+		handleSubmit:function(name){
+			var _this = this;
+			_this.addWdsLoading = true;
+		    _this.$refs[name].validate(function(valid){
+		        if (valid) {
+					if(_this.wdsData.length == 4){
+						_this.$Message.error(_this.$t('wds.msg6'));
+						_this.addIpfLoading = false;
+						return false;
+					}
+		            if (_this.wdsData.length) {
+						for(var i=0; i<_this.wdsData.length; i++) {
+							if(_this.formValidate.mac.toUpperCase() == _this.wdsData[i].mac.toUpperCase()) {
+								_this.$Message.error(_this.$t('wds.msg5'));
+								_this.addIpfLoading = false;
+								return false;
+							}
+						}
+					}
+		            var postVar = {};
+		            postVar.wifiIdx = _this.wifiIdx;
+					if(_this.wdsData.length == 0){
+						postVar.wdsList = _this.formValidate.mac;
+					}else{
+						postVar.wdsList = _this.macList +';'+ _this.formValidate.mac;
+					}
+		            postVar.addEffect = "0";
+		            uiPost.setWiFiWdsAddConfig(postVar,function(data){
+		                _this.addWdsLoading = false;
+		                location.href = location.href;
+		            });
+		        }else{
+		            _this.addWdsLoading = false;
+		        }
+		    })
+		},
+		showClientList:function(){
+			var _this = this;
+			var postVar = {};
+			_this.showModel = true;
+			postVar.wifiIdx = _this.wifiIdx;
+			uiPost.getWiFiApcliScan(postVar,function(data){
+				_this.arpData = data;
+			 	for(var i in _this.arpData){
+			 		_this.arpData[i].channel = Number(_this.arpData[i].channel);
+			 		_this.arpData[i].signal = Number(_this.arpData[i].signal);
+			 	}
+				_this.arpLoading = false;
+			});
+		},
+	    submitStatus:function(){
+			var _this = this;
+	        var postVar = {};
+			postVar.addEffect = "0";
+	        if(true == this.formValidate.status){
+	            postVar.wdsEnable = "1";
+	        }else{
+	            postVar.wdsEnable = "0";
+	        }
+	        postVar.addEffect = "1";
+			postVar.wifiIdx = _this.wifiIdx;
+	        uiPost.setWiFiWdsAddConfig(postVar);
+	    },
+		selectTable:function (obj) {
+			this.mac = obj.bssid;
+		},
+		ok:function () {
+			this.formValidate.mac = this.mac;
+		},
+		cancel:function () {
+		},
+		deleteData:function (obj) {
+			var _this = this;
+			var postVar = {};
+			postVar.wifiIdx = _this.wifiIdx;
+			postVar.DR0 = String(obj.index);
+			uiPost.setWiFiWdsDeleteConfig(postVar,function(){
+				_this.wdsData.splice(obj.index, 1);
+				location.href = location.href;
+			});
+		},
+		tableSelectAtonce:function(){
+	        var _this = this;
+	        var getSelection = this.$refs.tableSelect.getSelection();
+	        if (getSelection.length>0) {
+	            _this.atonceSelectFalg = true;
+	        }else{
+	            _this.atonceSelectFalg = false;
+	        }
+	    },
+		tableSelect:function(status){
+			var _this = this;
+			if (status) {
+				var getSelection = this.$refs.tableSelect.getSelection();
+				if (getSelection.length>0) {
+					var postVar = {};
+					postVar.wifiIdx = _this.wifiIdx;
+					for(var i=0; i<getSelection.length; i++)
+					{	
+						var j = getSelection[i].idx-1;
+						postVar['DR'+j] = String(j);
+					}
+					uiPost.setWiFiWdsDeleteConfig(postVar,function(data){
+						_this.$Message.success({content:_this.$t('wds.msg9'),onClose:function(){
+							location.href = location.href;
+						}});
+					});
+				}
+			}else{
+				this.$refs.tableSelect.selectAll(status);
+			}
+		},
+  }
+};
+</script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>

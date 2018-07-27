@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title></title>
+  <link rel="stylesheet" href="/plugin/iview/styles/iview.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div id="app"></div>
+
+<script type="text/x-template" id="main">
+<Col class="cs-container" span="20" >
+    <slot name="breadcrumb" :breadcrumb="[$t('menu.qos'),$t('menu.iqos')]"></slot>
+    <!-- 这个不能删除，用于面包屑显示 -->
+    <div class="cs-content">
+        <row>
+          <Col :xs="globalConfig.xs" :sm="globalConfig.sm" :md="globalConfig.md" :lg="globalConfig.lg" >
+            <Card>
+            <Alert>
+                <!-- <h3>设置</h3> -->
+                {{ $t('qos.help') }}
+            </Alert>
+            <Form ref="formValidate" :model="formValidate" :label-width="globalConfig.labelWith" label-position="left">
+                <FormItem :label="$t('common.state')">
+                    <i-switch v-model="formValidate.enable" size="large">
+                        <span slot="open">{{ $t('common.enabled') }}</span>
+                        <span slot="close">{{ $t('common.disabled') }}</span>
+                    </i-switch>
+                </FormItem>
+                <Col v-show="formValidate.enable">
+                    <FormItem :label="$t('qospolicy.qospolicy')">
+                        <RadioGroup v-model="formValidate.priorityMode" type="button">
+                          <Radio label="0">{{ $t('qospolicy.default_mode') }}</Radio>
+                          <Radio label="1">{{ $t('qospolicy.office_mode') }}</Radio>
+                          <Radio label="2">{{ $t('qospolicy.game_mode') }}</Radio>
+                          <Radio label="3">{{ $t('qospolicy.download_mode') }}</Radio>
+                          <Radio label="4">{{ $t('qospolicy.advanced_mode') }}</Radio>
+                        </RadioGroup>
+                    </FormItem>
+                    <Col v-if="formValidate.priorityMode == 4">
+                    <FormItem :label="'HTTP'+$t('qospolicy.net')">
+                        <RadioGroup v-model="formValidate.http" type="button">
+                          <Radio v-for="(n,i) in levels" :key='i' :label="i+''" >{{ n }}</Radio>
+                        </RadioGroup>
+                    </FormItem>
+                    <FormItem :label="'HTTP'+$t('qospolicy.download')">
+                        <RadioGroup v-model="formValidate.http_download" type="button">
+                          <Radio v-for="(n,i) in levels" :key='i' :label="i+''" >{{ n }}</Radio>
+                        </RadioGroup>
+                    </FormItem>
+                    <FormItem :label="'HTTPS'+$t('qospolicy.net')">
+                        <RadioGroup v-model="formValidate.https" type="button">
+                          <Radio v-for="(n,i) in levels" :key='i' :label="i+''" >{{ n }}</Radio>
+                        </RadioGroup>
+                    </FormItem>
+                    <FormItem :label="$t('qospolicy.small_packet')">
+                        <RadioGroup v-model="formValidate.small_packet" type="button">
+                          <Radio v-for="(n,i) in levels" :key='i' :label="i+''" >{{ n }}</Radio>
+                        </RadioGroup>
+                    </FormItem>
+                    <FormItem :label="'P2P'+$t('qospolicy.download')">
+                        <RadioGroup v-model="formValidate.p2p" type="button">
+                          <Radio v-for="(n,i) in levels" :key='i' :label="i+''" >{{ n }}</Radio>
+                        </RadioGroup>
+                    </FormItem>
+                    <FormItem :label="$t('qospolicy.other')">
+                        <RadioGroup v-model="formValidate.other" type="button">
+                          <Radio v-for="(n,i) in levels" :key='i' :label="i+''" >{{ n }}</Radio>
+                        </RadioGroup>
+                    </FormItem>
+                    </Col>
+                </Col>
+                <FormItem >
+                    <Button type="primary" @click="handleSubmit('formValidate')">{{ $t('common.apply') }}</Button>
+                </FormItem>
+            </Form>
+            </Card>
+            <br>
+        </Col>
+        </row>
+    </div>
+
+    <!-- 这个不能删除，用于底部显示 -->
+    <slot name="footer"></slot>
+</Col>
+</script>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/iview/iview.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/layout.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+var cs_main = {
+  template:"#main",
+  data:function(){
+    var _this = this;
+    return {
+      globalConfig:globalConfig,
+      formValidate: {
+        enable:false,
+        priorityMode:"0",
+        https:{
+          level:"0"
+        }
+      }
+    }
+  },
+  computed:{
+    levels:function() {
+      return [
+        this.$t('qospolicy.L0'),
+        this.$t('qospolicy.L1'),
+        this.$t('qospolicy.L2'),
+        this.$t('qospolicy.L3'),
+        this.$t('qospolicy.L4')
+      ];
+    }
+  },
+  created:function() {
+    var _this = this;
+    uiPost.getQosPolicy(function(data) {
+        data.enable = data.enable == "1" ? true : false;
+        _this.formValidate = data;
+    });
+  },
+  methods:{
+    handleSubmit:function(){
+        var _this = this;
+        var postVar = {};
+        if(_this.formValidate.enable){
+            if(_this.formValidate.priorityMode == 4){
+                this.formValidate.enable = "1";
+                uiPost.setQosPolicy(this.formValidate,function(){
+                    _this.$Message.success(_this.$t('qospolicy.msg'));
+                });
+            }else{
+                postVar.enable = "1";
+                postVar.priorityMode = _this.formValidate.priorityMode;
+                uiPost.setQosPolicy(postVar,function(){
+                    _this.$Message.success(_this.$t('qospolicy.msg'));
+                });
+            }
+        }else{
+            postVar.enable = "0";
+            uiPost.setQosPolicy(postVar,function(){
+                _this.$Message.success(_this.$t('qospolicy.msg'));
+            });
+        }
+    }
+  }
+};
+</script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>

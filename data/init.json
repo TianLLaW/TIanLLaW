@@ -1,0 +1,30 @@
+{
+  "model":  "A7000R",
+  "defaultLang":  "ct",
+  "currentMode":  "GW",
+  "showLanguage": "cn,ct,en,ru,vn",
+  "showHelp": true,
+  "cs": "TOTOLINK",
+  "webTitle": "",
+  "copyRight":  "Copyright &copy; [date] TOTOLINK Ltd., All Rights Reserved",
+  "helpUrl":  "http://www.carystudio.com",
+  "hasMobile":  false,
+  "show4gFlag": false,
+  "langAutoFlag":"1",
+  "showAutoLang":"1",
+  "custom": {
+    "WechatQrSupport":"1",
+    "IptvSupport":  "0",
+    "Ipv6Support":  "1",
+    "PppoeSpSupport": "",
+    "PppoeSpecRussia":"",
+    "DdnsSupport":"1",
+    "PptpServerSupport":"0",
+    "L2tpServerSupport":"1",
+    "PptpClientSupport":"0",
+    "L2tpClientSupport":"1",
+    "SsrServerSupport":"1",
+    "WanTypeList": "dhcp,static,pppoe,l2tp,pptp"
+  },
+  "showLinkInfo":false
+}

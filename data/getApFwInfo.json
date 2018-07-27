@@ -1,0 +1,13 @@
+[{
+		"id":	"1",
+		"csid":	"C8B811A",
+		"svnnum":	"855",
+		"builddate":	"2018,04,23",
+		"filepath":	"/ACFirmware/TOTOLINK_C8B811A_AP0164_AP0164_QCA9531QCA9887_SPI_16M128M_V6.2c.855_B20180423_ALL.web"
+	}, {
+		"id":	"2",
+		"csid":	"C8B810A-1C",
+		"svnnum":	"855",
+		"builddate":	"2018,04,23",
+		"filepath":	"/ACFirmware/TOTOLINK_C8B810A-1C_AP0155_AP0155_QCA9531_SPI_16M128M_V6.2c.855_B20180423_ALL.web"
+}]

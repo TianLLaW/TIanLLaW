@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title></title>
+  <link rel="stylesheet" href="/plugin/iview/styles/iview.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div id="app"></div>
+
+<script type="text/x-template" id="main">
+    <Col class="cs-container" span="20" >
+    <slot name="breadcrumb" :breadcrumb="[$t('menu.server'),$t('menu.openvpn')]"></slot>
+    <!-- 这个不能删除，用于面包屑显示 -->
+    <div class="cs-content">
+        <Row>
+            <Col :xs="globalConfig.xs" :sm="globalConfig.sm" :md="globalConfig.md" :lg="globalConfig.lg">
+            <Card>
+                <Alert>
+                    {{ $t('openvpn.help') }}
+                </Alert>
+                <Form ref="formValidate" :model="formValidate" :rules="ruleValidate" :label-width="globalConfig.labelWith" label-position="left">
+                    <FormItem :label="$t('openvpn.status')">
+                        <i-switch v-model="formValidate.status" size="large">
+                            <span slot="open">{{ $t('common.on') }}</span>
+                            <span slot="close">{{ $t('common.off') }}</span>
+                        </i-switch>
+                    </FormItem>
+                    <Col v-show="status">
+                    <FormItem :label="$t('openvpn.port')" prop="port">
+                        <Input v-model="formValidate.port" :maxlength="5"></Input>
+                        <span>(1~65536)</span>
+                    </FormItem>
+                    <FormItem :label="$t('openvpn.openvpn_subnet')" prop="subnet">
+                        <Input v-model="formValidate.subnet"></Input>
+                    </FormItem>
+                    <FormItem :label="$t('openvpn.mask')">
+                        <div class="server"><Select v-model="formValidate.mask">
+                            <Option v-for="mask in maskOption" :value="mask.value" :key="mask.value">{{mask.option}}</Option>
+                        </Select></div>
+                    </FormItem>
+                    <FormItem :label="$t('openvpn.client_certway')">
+                        <div class="server"><Select v-model="formValidate.clientCertway" :key="$t('openvpn.client_certway')">
+                            <Option value="0">{{ $t('openvpn.cert_auth') }}</Option>
+                            <Option value="1">{{ $t('openvpn.account_auth') }}</Option>
+                        </Select></div>
+                    </FormItem>
+                    <FormItem :label="$t('openvpn.proto')">
+                        <Select v-model="formValidate.proto">
+                            <Option value="udp">UDP</Option>
+                            <Option value="tcp">TCP</Option>
+                        </Select>
+                    </FormItem>
+                    <FormItem :label="$t('openvpn.dev_type')">
+                        <Select v-model="formValidate.dev_type">
+                            <Option value="tun">TUN</Option>
+                            <Option value="tap">TAP</Option>
+                        </Select>
+                    </FormItem>
+                    <FormItem :label="$t('openvpn.cipher')" >
+                        <div class="server">
+                        <Select v-model="formValidate.cipher" >
+                            <Option v-for="cipher in cipherOption" :value="cipher.value" :key="cipher.value">{{cipher.option}}</Option>
+                        </Select>
+                        </div>
+                    </FormItem>
+                    <!-- <FormItem :label="$t('openvpn.comp_auth')" >
+                        <div class="server">
+                        <Select v-model="formValidate.comp_auth" >
+                            <Option v-for="comp_auth in comp_authOption" :value="comp_auth.value" :key="comp_auth.value">{{comp_auth.option}}</Option>
+                        </Select>
+                        </div>
+                    </FormItem> -->
+                    <FormItem :label="$t('openvpn.comp_lzo')">
+                        <RadioGroup v-model="formValidate.comp_lzo">
+                            <Radio label="1">{{ $t('openvpn.on') }}</Radio>
+                            <Radio label="0">{{ $t('openvpn.off') }}</Radio>
+                        </RadioGroup>
+                    </FormItem>
+                    <FormItem :label="$t('openvpn.mtu')" prop="tun_mtu">
+                        <Input v-model="formValidate.tun_mtu" :maxlength="4"></Input>
+                        <span>(1400~1500)</span>
+                    </FormItem>
+                    <FormItem :label="$t('openvpn.ca')">
+                        <Input type="textarea" :rows="4" v-model="formValidate.ca"></Input>
+                    </FormItem>
+                    <FormItem :label="$t('openvpn.secret_key')">
+                        <Input type="textarea" :rows="4" v-model="formValidate.secret_key"></Input>
+                    </FormItem>
+                    <FormItem :label="$t('openvpn.cert')">
+                        <Input type="textarea" :rows="4" v-model="formValidate.cert"></Input>
+                    </FormItem>
+                    <FormItem :label="$t('openvpn.key')">
+                        <Input type="textarea" :rows="4" v-model="formValidate.key"></Input>
+                    </FormItem>
+                    <FormItem :label="$t('openvpn.extra_config')">
+                        <Input type="textarea" :rows="4" v-model="formValidate.extra_config"></Input>
+                        <span>{{ $t('openvpn.extra_config_example') }}</span><br>
+                        <span>tcp-queue-limit 32  mtu-disc no<br>route 192.168.98.0 255.255.255.0 10.20.40.200<br>push route 192.168.10.0 255.255.255.0</span>
+                    </FormItem>
+                     <FormItem v-show="false">
+                        <Input v-model="log"></Input>
+                    </FormItem>
+                    </Col>
+                    <FormItem>
+                        <Button type="primary" @click="handleShowLog">{{ $t('openvpn.show_log') }}</Button>
+                        <Modal
+                            v-model="modal"
+                            :title="$t('openvpn.log')"
+                            width="600"
+                            @on-ok="ok"
+                            @on-cancel="cancel">
+                           <Input type="textarea" :rows="15" v-model="log" readonly></Input>
+                        </Modal>
+                        <Button type="primary" :loading="applyLoading" @click="handleSubmit('formValidate')">{{ $t('common.apply') }}</Button>
+                    </FormItem>
+                </Form>
+            </Card>
+            </Col>
+        </Row>
+    </div>
+    <!-- 这个不能删除，用于底部显示 -->
+    <slot name="footer"></slot>
+    </Col>
+</script>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/iview/iview.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/layout.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+    var cs_main = {
+        template:"#main",
+        data:function(){
+            var _this = this;
+            return {
+                globalConfig:globalConfig,
+                applyLoading:false,
+                status:false,
+                modal:false,
+                formValidate: {
+                    status: false,
+                    port: '',
+                    subnet:'',
+                    mask:'255.255.255.0',
+                    proto:'udp',
+                    dev_type:'tun',
+                    cipher:'none',
+                    //comp_auth:'',
+                    comp_lzo:'1',
+                    tun_mtu:'1400',
+                    ca:'',
+                    secret_key:'',
+                    cert:'',
+                    key:'',
+                    extra_config:'',
+                    clientCertway:''
+                },
+                log:''
+            }
+        },
+        watch:{
+            "formValidate.status":function(){
+                var _this = this;
+                if(_this.formValidate.status == true){
+                    _this.status = true;
+                }else{
+                    _this.status = false;
+                }
+            }
+        },
+        computed:{
+            ruleValidate:function () {
+                var _this = this;
+                return {
+                    port: [
+                        { validator:function(r, v, f) {
+                            var _s = cs.num_range(v,1,65536);
+                            if(0 == _s) {
+                                f(_this.$t('openvpn.port')+_this.$t('openvpn.msg1'));
+                            }else if(1 == _s) {
+                                f(_this.$t('openvpn.port')+_this.$t('openvpn.msg3'));
+                            }else if(2 == _s) {
+                                f(_this.$t('openvpn.port')+_this.$t('openvpn.msg4',[1,65536]));
+                            }else{
+                                f();
+                            }
+                        },trigger: 'blur' }
+                    ],
+                    subnet: [
+                        { required: true, message: _this.$t('openvpn.openvpn_subnet')+_this.$t('openvpn.msg1'), trigger: 'blur' },
+                        { validator:function(r, v, f) {
+                            var _s = cs.ip(v);
+                            if(_s == 1){
+                                f(_this.$t('openvpn.openvpn_subnet')+_this.$t('openvpn.msg2'));
+                            }else{
+                                f();
+                            }
+                        },trigger: 'blur' }
+                    ],
+                    tun_mtu: [
+                        { validator:function(r, v, f) {
+                            var _s = cs.num_range(v,1400,1500);
+                            if(0 == _s) {
+                                f(_this.$t('openvpn.mtu')+_this.$t('openvpn.msg1'));
+                            }else if(1 == _s) {
+                                f(_this.$t('openvpn.mtu')+_this.$t('openvpn.msg3'));
+                            }else if(2 == _s) {
+                                f(_this.$t('openvpn.mtu')+_this.$t('openvpn.msg4',[1400,1500]));
+                            }else{
+                                f();
+                            }
+                        },trigger: 'blur' }
+                    ]
+                };
+            },
+            maskOption:function(){
+                var _this = this;
+                return [
+                    {
+                      option: "255.255.255.248(29)",
+                      value: "255.255.255.248"
+                    },{
+                      option: "255.255.255.240(28)",
+                      value: "255.255.255.240"
+                    },{
+                      option: "255.255.255.224(27)",
+                      value: "255.255.255.224"
+                    },{
+                      option: "255.255.255.192(26)",
+                      value: "255.255.255.192"
+                    },{
+                      option: "255.255.255.128(25)",
+                      value: "255.255.255.128"
+                    },{
+                      option: "255.255.255.0(24)",
+                      value: "255.255.255.0"
+                    },{
+                      option: "255.255.254.0(23)",
+                      value: "255.255.254.0"
+                    },{
+                      option: "255.255.252.0(22)",
+                      value: "255.255.252.0"
+                    },{
+                      option: "255.255.248.0(21)",
+                      value: "255.255.248.0"
+                    },{
+                      option: "255.255.240.0(20)",
+                      value: "255.255.240.0"
+                    },{
+                      option: "255.255.224.0(19)",
+                      value: "255.255.224.0"
+                    },{
+                      option: "255.255.192.0(18)",
+                      value: "255.255.192.0"
+                    },{
+                      option: "255.255.128.0(17)",
+                      value: "255.255.128.0"
+                    },{
+                      option: "255.255.0.0(16)",
+                      value: "255.255.0.0"
+                    },{
+                      option: "255.254.0.0(15)",
+                      value: "255.254.0.0"
+                    },{
+                      option: "255.252.0.0(14)",
+                      value: "255.252.0.0"
+                    },{
+                      option: "255.248.0.0(13)",
+                      value: "255.248.0.0"
+                    },{
+                      option: "255.240.0.0(12)",
+                      value: "255.240.0.0"
+                    },{
+                      option: "255.224.0.0(11)",
+                      value: "255.224.0.0"
+                    },{
+                      option: "255.192.0.0(10)",
+                      value: "255.192.0.0"
+                    },{
+                      option: "255.128.0.0(9)",
+                      value: "255.128.0.0"
+                    },{
+                      option: "255.0.0.0(8)",
+                      value: "255.0.0.0"
+                    },{
+                      option: "254.0.0.0(7)",
+                      value: "254.0.0.0"
+                    },{
+                      option: "252.0.0.0(6)",
+                      value: "252.0.0.0"
+                    },{
+                      option: "248.0.0.0(5)",
+                      value: "248.0.0.0"
+                    },{
+                      option: "240.0.0.0(4)",
+                      value: "240.0.0.0"
+                    },{
+                      option: "224.0.0.0(3)",
+                      value: "224.0.0.0"
+                    },{
+                      option: "192.0.0.0(2)",
+                      value: "192.0.0.0"
+                    },{
+                      option: "128.0.0.0(1)",
+                      value: "128.0.0.0"
+                    }
+                ];
+            },
+            cipherOption:function(){
+                var _this = this;
+                return [
+                    {
+                      option: "NONE",
+                      value: "none"
+                    },
+                    {
+                      option: "BF-CBC",
+                      value: "BF-CBC"
+                    },{
+                      option: "BF-CFB",
+                      value: "BF-CFB"
+                    },{
+                      option: "BF-OFB",
+                      value: "BF-OFB"
+                    },{
+                      option: "DES-CFB",
+                      value: "DES-CFB"
+                    },{
+                      option: "DES-CBC",
+                      value: "DES-CBC"
+                    },{
+                      option: "RC2-CBC",
+                      value: "RC2-CBC"
+                    },{
+                      option: "RC2-CFB",
+                      value: "RC2-CFB"
+                    },{
+                      option: "RC2-OFB",
+                      value: "RC2-OFB"
+                    },{
+                      option: "DES-EDE-CBC",
+                      value: "DES-EDE-CBC"
+                    },{
+                      option: "DES-EDE3-CBC",
+                      value: "DES-EDE3-CBC"
+                    },{
+                      option: "DES-OFB",
+                      value: "DES-OFB"
+                    },{
+                      option: "DES-EDE-CFB",
+                      value: "DES-EDE-CFB"
+                    },{
+                      option: "DES-EDE3-CFB",
+                      value: "DES-EDE3-CFB"
+                    },{
+                      option: "DES-EDE-OFB",
+                      value: "DES-EDE-OFB"
+                    },{
+                      option: "DES-EDE3-OFB",
+                      value: "DES-EDE3-OFB"
+                    },{
+                      option: "DESX-CBC",
+                      value: "DESX-CBC"
+                    },{
+                      option: "RC2-40-CBC",
+                      value: "RC2-40-CBC"
+                    },{
+                      option: "CAST5-CBC",
+                      value: "CAST5-CBC"
+                    },{
+                      option: "CAST5-CFB",
+                      value: "CAST5-CFB"
+                    },{
+                      option: "CAST5-OFB",
+                      value: "CAST5-OFB"
+                    },{
+                      option: "RC2-64-CBC",
+                      value: "RC2-64-CBC"
+                    },{
+                      option: "AES-128-CBC",
+                      value: "AES-128-CBC"
+                    },{
+                      option: "AES-128-OFB",
+                      value: "AES-128-OFB"
+                    },{
+                      option: "AES-128-CFB",
+                      value: "AES-128-CFB"
+                    },{
+                      option: "AES-192-CBC",
+                      value: "AES-192-CBC"
+                    },{
+                      option: "AES-192-OFB",
+                      value: "AES-192-OFB"
+                    },{
+                      option: "AES-192-CFB",
+                      value: "AES-192-CFB"
+                    },{
+                      option: "AES-256-CBC",
+                      value: "AES-256-CBC"
+                    },{
+                      option: "AES-256-OFB",
+                      value: "AES-256-OFB"
+                    },{
+                      option: "AES-256-CFB",
+                      value: "AES-256-CFB"
+                    },{
+                      option: "AES-128-CFB1",
+                      value: "AES-128-CFB1"
+                    },{
+                      option: "AES-192-CFB1",
+                      value: "AES-192-CFB1"
+                    },{
+                      option: "AES-256-CFB1",
+                      value: "AES-256-CFB1"
+                    },{
+                      option: "AES-128-CFB8",
+                      value: "AES-128-CFB8"
+                    },{
+                      option: "AES-192-CFB8",
+                      value: "AES-192-CFB8"
+                    },{
+                      option: "AES-256-CFB8",
+                      value: "AES-256-CFB8"
+                    },{
+                      option: "DES-CFB1",
+                      value: "DES-CFB1"
+                    },{
+                      option: "DES-CFB8",
+                      value: "DES-CFB8"
+                    },{
+                      option: "DES-EDE3-CFB1",
+                      value: "DES-EDE3-CFB1"
+                    },{
+                      option: "DES-EDE3-CFB8",
+                      value: "DES-EDE3-CFB8"
+                    },{
+                      option: "SEED-CBC",
+                      value: "SEED-CBC"
+                    },{
+                      option: "SEED-OFB",
+                      value: "SEED-OFB"
+                    },{
+                      option: "SEED-CFB",
+                      value: "SEED-CFB"
+                    }
+                ];
+            }/*,
+            comp_authOption:function(){
+                var _this = this;
+                return [
+                    {
+                      option: "NONE",
+                      value: "none"
+                    },
+                    {
+                      option: "DSA",
+                      value: "DSA"
+                    },{
+                      option: "DSA-SHA",
+                      value: "DSA-SHA"
+                    },{
+                      option: "DSA-SHA1",
+                      value: "DSA-SHA1"
+                    },{
+                      option: "DSA-SHA1-old",
+                      value: "DSA-SHA1-old"
+                    },{
+                      option: "MD4",
+                      value: "MD4"
+                    },{
+                      option: "MD5",
+                      value: "MD5"
+                    },{
+                      option: "MDC2",
+                      value: "MDC2"
+                    },{
+                      option: "RIPEMD160",
+                      value: "RIPEMD160"
+                    },{
+                      option: "RSA-MD4",
+                      value: "RSA-MD4"
+                    },{
+                      option: "RSA-MD5",
+                      value: "RSA-MD5"
+                    },{
+                      option: "RSA-MDC2",
+                      value: "RSA-MDC2"
+                    },{
+                      option: "RSA-RIPEMD160",
+                      value: "RSA-RIPEMD160"
+                    },{
+                      option: "RSA-SHA",
+                      value: "RSA-SHA"
+                    },{
+                      option: "RSA-SHA1",
+                      value: "RSA-SHA1"
+                    },{
+                      option: "RSA-SHA1-2",
+                      value: "RSA-SHA1-2"
+                    },{
+                      option: "RSA-SHA224",
+                      value: "RSA-SHA224"
+                    },{
+                      option: "RSA-SHA256",
+                      value: "RSA-SHA256"
+                    },{
+                      option: "DESX-CBC",
+                      value: "DESX-CBC"
+                    },{
+                      option: "RC2-40-CBC",
+                      value: "RC2-40-CBC"
+                    },{
+                      option: "CAST5-CBC",
+                      value: "CAST5-CBC"
+                    },{
+                      option: "CAST5-CFB",
+                      value: "CAST5-CFB"
+                    },{
+                      option: "CAST5-OFB",
+                      value: "CAST5-OFB"
+                    },{
+                      option: "RC2-64-CBC",
+                      value: "RC2-64-CBC"
+                    },{
+                      option: "AES-128-CBC",
+                      value: "AES-128-CBC"
+                    },{
+                      option: "AES-128-OFB",
+                      value: "AES-128-OFB"
+                    },{
+                      option: "AES-128-CFB",
+                      value: "AES-128-CFB"
+                    },{
+                      option: "AES-192-CBC",
+                      value: "AES-192-CBC"
+                    },{
+                      option: "AES-192-OFB",
+                      value: "AES-192-OFB"
+                    },{
+                      option: "AES-192-CFB",
+                      value: "AES-192-CFB"
+                    },{
+                      option: "AES-256-CBC",
+                      value: "AES-256-CBC"
+                    },{
+                      option: "AES-256-OFB",
+                      value: "AES-256-OFB"
+                    },{
+                      option: "AES-256-CFB",
+                      value: "AES-256-CFB"
+                    },{
+                      option: "AES-128-CFB1",
+                      value: "AES-128-CFB1"
+                    },{
+                      option: "AES-192-CFB1",
+                      value: "AES-192-CFB1"
+                    },{
+                      option: "AES-256-CFB1",
+                      value: "AES-256-CFB1"
+                    },{
+                      option: "AES-128-CFB8",
+                      value: "AES-128-CFB8"
+                    },{
+                      option: "AES-192-CFB8",
+                      value: "AES-192-CFB8"
+                    },{
+                      option: "AES-256-CFB8",
+                      value: "AES-256-CFB8"
+                    },{
+                      option: "DES-CFB1",
+                      value: "DES-CFB1"
+                    },{
+                      option: "DES-CFB8",
+                      value: "DES-CFB8"
+                    },{
+                      option: "DES-EDE3-CFB1",
+                      value: "DES-EDE3-CFB1"
+                    },{
+                      option: "DES-EDE3-CFB8",
+                      value: "DES-EDE3-CFB8"
+                    },{
+                      option: "SEED-CBC",
+                      value: "SEED-CBC"
+                    },{
+                      option: "SEED-OFB",
+                      value: "SEED-OFB"
+                    },{
+                      option: "SEED-CFB",
+                      value: "SEED-CFB"
+                    }
+                ];
+            }*/
+        },
+        created:function() {
+            var _this = this;
+            uiPost.getOpenVpnConfig(function(data) {
+                _this.formValidate.status = data.Enabled == 1 ?true :false;
+                _this.formValidate.port = data.port;
+                _this.formValidate.subnet = data.subnet;
+                _this.formValidate.mask = data.mask;
+                _this.formValidate.proto = data.proto;
+                _this.formValidate.dev_type = data.dev_type;
+                _this.formValidate.cipher = data.cipher;
+                //_this.formValidate.comp_auth = data.comp_auth;
+                _this.formValidate.comp_lzo = data.comp_lzo;
+                _this.formValidate.tun_mtu = data.tun_mtu;
+                _this.formValidate.ca = data.ca;
+                _this.formValidate.secret_key = data.dh;
+                _this.formValidate.cert = data.cert;
+                _this.formValidate.key = data.key;
+                _this.formValidate.extra_config = data.extra_config;
+                _this.formValidate.clientCertway = data.clientCertway;
+            });
+        },
+        methods:{
+            handleSubmit: function(name) {
+                var _this = this;
+                _this.applyLoading = true;
+                _this.$refs[name].validate(function(valid){
+                    if (valid) {
+                        var postVar = {};        
+                        if(true == _this.formValidate.status){
+                            postVar.Enabled = 1;
+                            postVar.port = _this.formValidate.port;
+                            postVar.subnet = _this.formValidate.subnet;
+                            postVar.mask = _this.formValidate.mask;
+                            postVar.proto = _this.formValidate.proto;
+                            postVar.dev_type = _this.formValidate.dev_type;
+                            postVar.cipher = _this.formValidate.cipher;
+                            //postVar.comp_auth = _this.formValidate.comp_auth;
+                            postVar.comp_lzo = _this.formValidate.comp_lzo;
+                            postVar.tun_mtu = _this.formValidate.tun_mtu;
+                            postVar.ca = _this.formValidate.ca;
+                            postVar.dh = _this.formValidate.secret_key;
+                            postVar.cert = _this.formValidate.cert;
+                            postVar.key = _this.formValidate.key;
+                            postVar.extra_config = _this.formValidate.extra_config;
+                            postVar.clientCertway = _this.formValidate.clientCertway;
+                        }else{
+                            postVar.Enabled = 0;
+                        }
+                        uiPost.setOpenVpnConfig(postVar,function(data){
+                            _this.$Message.success({content:_this.$t('openvpn.set_success'),onClose:function(){
+                                _this.applyLoading = false;
+                            }});
+                            var percentTimer = setInterval(function(){
+                                clearInterval(percentTimer);
+                                //location.href=location.href;
+                            },cs.getTimer(200));
+                        });
+                    }else{
+                        _this.applyLoading = false;
+                    }
+                })
+            },
+            handleShowLog:function(){
+                var _this = this;
+                _this.modal = true;
+                uiPost.getOpenVpnLog(function(data) {
+                    _this.log = data.log;
+                });
+            },
+            ok:function () {
+                //this.$Message.info('Clicked ok');
+            },
+            cancel:function () {
+                //this.$Message.info('Clicked cancel');
+            }
+        }
+    };
+</script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>

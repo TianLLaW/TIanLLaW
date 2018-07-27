@@ -1,0 +1,84 @@
+[{
+		"id":	"1",
+		"apname":	"",
+		"rebooSchedule":	"0",
+		"apmac":	"F4:28:54:C9:C8:80",
+		"ipaddr":	"192.168.4.42",
+		"netmask":	"255.255.255.0",
+		"gateway":	"192.168.4.1",
+		"pridns":	"192.168.4.1",
+		"apstate":	"511",
+		"apstatus":	"0",
+		"csid":	"C8B810A-1C",
+		"model":	"CA300-POE",
+		"svnnum":	"855",
+		"uptime":	"2018-04-26 14:11:39",
+		"softver":	"V6.2c",
+		"aptype":	"1",
+		"password":	"admin",
+		"ledstate":	"0",
+		"SSIDS":	{
+			"ssid":	"TOTOLINK_C9C880",
+			"hide":	"0",
+			"isolate":	"0",
+			"encryption":	"0",
+			"passphrase":	"",
+			"stanum":	"32",
+			"vlanid":	"0"
+		},
+		"RADIO0":	{
+			"htmode":	"0",
+			"channel":	"0",
+			"txpower":	"100",
+			"clientnum":	"0"
+		}
+	}, {
+		"id":	"2",
+		"apname":	"",
+		"rebooSchedule":	"0",
+		"apmac":	"F4:28:54:00:40:27",
+		"ipaddr":	"192.168.4.37",
+		"netmask":	"255.255.255.0",
+		"gateway":	"192.168.4.1",
+		"pridns":	"192.168.4.1",
+		"apstate":	"511",
+		"apstatus":	"3",
+		"csid":	"C8B811A",
+		"model":	"AP0164",
+		"svnnum":	"855",
+		"uptime":	"2018-04-26 14:12:06",
+		"softver":	"V6.2c",
+		"aptype":	"3",
+		"password":	"admin",
+		"ledstate":	"0",
+		"SSIDS":	{
+			"ssid":	"wifi_004027",
+			"hide":	"0",
+			"isolate":	"0",
+			"encryption":	"0",
+			"passphrase":	"",
+			"stanum":	"32",
+			"vlanid":	"0"
+		},
+		"SSIDS1":	{
+			"ssid":	"wifi_5G_004027",
+			"hide":	"0",
+			"isolate":	"0",
+			"encryption":	"0",
+			"passphrase":	"",
+			"stanum":	"32",
+			"vlanid":	"0"
+		},
+		"RADIO0":	{
+			"htmode":	"0",
+			"channel":	"0",
+			"txpower":	"100",
+			"clientnum":	"0"
+		},
+		"RADIO1":	{
+			"htmode":	"2",
+			"channel":	"149",
+			"txpower":	"100",
+			"clientnum":	"0"
+		}
+	}]

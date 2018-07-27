@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title></title>
+  <link rel="stylesheet" href="/plugin/iview/styles/iview.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div id="app"></div>
+
+<script type="text/x-template" id="main">
+<Col class="cs-container" span="20" >
+    <slot name="breadcrumb"></slot>
+    <!-- 这个不能删除，用于面包屑显示 -->
+    <div class="cs-content">
+        <Row>
+          <Col :xs="globalConfig.xs" :sm="globalConfig.sm" :md="globalConfig.md" :lg="globalConfig.lg">
+            <Card>
+            <Col>
+                <Alert>
+                  {{ $t('remote.help') }}
+                </Alert>
+            </Col>
+            <Form ref="formValidate" :model="formValidate" :rules="ruleValidate" :label-width="globalConfig.labelWith" label-position="left">
+                <FormItem :label="$t('remote.title')">
+                    <i-switch v-model="formValidate.status" size="large">
+                        <span slot="open">{{ $t('remote.enabled') }}</span>
+                        <span slot="close">{{ $t('remote.disabled') }}</span>
+                    </i-switch>
+                </FormItem>
+                <Col v-show="formValidate.status" >
+                <FormItem :label="$t('remote.port')" prop="port">
+                    <Input v-model="formValidate.port" :maxlength="5"></Input>
+                    <span>80—65535</span>
+                </FormItem>
+                <!-- btn -->
+                </Col>
+                <FormItem>
+                    <Button type="primary" @click="handleSubmit('formValidate')" :loading="applyLoading">{{ $t('remote.apply') }}</Button>
+                </FormItem>
+            </Form>
+            </Card>
+            <br>
+        </Col>
+        </Row>
+    </div>
+    <!-- 这个不能删除，用于底部显示 -->
+    <slot name="footer"></slot>
+</Col>
+</script>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/iview/iview.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/layout.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+var cs_main = {
+  template:"#main",
+  data:function(){
+    return {
+      globalConfig:globalConfig,
+      applyLoading:false,
+      formValidate: {
+          status:false,
+          port:''
+      },
+      csid: '',
+    }
+  },
+  computed:{
+    ruleValidate: function(){
+      var _this = this;
+      return {
+          port: [
+            { required: true, message: this.$t('remote.msg1'), trigger: 'blur' },
+            { validator:function(r, v, f){
+                var _s = cs.num_range(v,80,65535);
+                if(_s == 1 || _s == 2){
+                    f(_this.$t('remote.msg2'));
+                }else{
+                  f();
+                }
+              },trigger: 'blur'}
+          ]
+      }
+    }
+  },
+  created:function() {
+    var _this = this;
+    uiPost.getRemoteCfg(function(data) {
+        _this.formValidate.status = data.remoteEnabled == 1 ?true :false;
+        _this.formValidate.port = data.port;
+        _this.csid = data.csid;
+    })
+  },
+  methods:{
+    handleSubmit: function(name) {
+        var _this = this;
+        _this.$refs[name].validate(function(valid){
+            if (valid) {
+                var postVar = {};
+                postVar.port = _this.formValidate.port;
+                postVar.csid = _this.csid;
+                postVar.remoteEnabled = _this.formValidate.status?"1":"0";
+                uiPost.setRemoteCfg(postVar,function(data){
+					if(data.portReuse == 1){
+						_this.$Message.error(_this.$t('portfwd.msg8'));
+						_this.addPortfwdLoading = false;
+                        return false;
+					}else{
+						location.href = location.href;
+					}
+                });
+            }
+        })
+    }
+  }
+};
+</script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title></title>
+  <link rel="stylesheet" href="/plugin/iview/styles/iview.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div id="app"></div>
+
+<script type="text/x-template" id="main">
+<Col class="cs-container" span="20" >
+    <slot name="breadcrumb"></slot>
+    <!-- 这个不能删除，用于面包屑显示 -->
+    <div class="cs-content">
+        <Row>
+          <Col :xs="globalConfig.xs" :sm="globalConfig.sm" :md="globalConfig.md" :lg="globalConfig.lg">
+            <Card>
+            <Col>
+                <Alert>
+                    {{ $t('notice.help') }}
+                </Alert>
+            </Col>
+            <Form ref="formValidate" :model="formValidate" :rules="ruleValidate" :label-width="globalConfig.labelWith" label-position="left">
+                <FormItem :label="$t('notice.title')">
+                    <i-switch v-model="formValidate.status" size="large" >
+                        <span slot="open">{{ $t('common.enabled') }}</span>
+                        <span slot="close">{{ $t('common.disabled') }}</span>
+                    </i-switch>
+                </FormItem>
+
+                <Col v-show="formValidate.status">
+                <FormItem :label="$t('notice.notice_url')" prop="NoticeUrl">
+                    <Input v-model="formValidate.NoticeUrl" :maxlength="127"></Input>
+                    <span>{{ $t('notice.url_help') }}</span>
+                </FormItem>
+                <FormItem :label="$t('notice.notice_btn')" prop="BtnName">
+                    <Input v-model="formValidate.BtnName" :maxlength="255"></Input>
+                </FormItem>
+                <FormItem :label="$t('notice.whitelist_url')+'1'" prop="WhiteListUrl1">
+                    <Input v-model="formValidate.WhiteListUrl1" :maxlength="127"></Input>
+                    <span>{{ $t('notice.whitelist_help') }}</span>
+                </FormItem>
+                <FormItem :label="$t('notice.whitelist_url')+'2'"  prop="WhiteListUrl2">
+                    <Input v-model="formValidate.WhiteListUrl2" :maxlength="127"></Input>
+                </FormItem>
+                <FormItem :label="$t('notice.whitelist_url')+'3'"  prop="WhiteListUrl3">
+                    <Input v-model="formValidate.WhiteListUrl3" :maxlength="127"></Input>
+                </FormItem>
+                <FormItem :label="$t('notice.exception_ip')">
+                    <Row>
+                        <Col span="12"><FormItem prop="IpFrom"><Input :maxlength="3" v-model="formValidate.IpFrom" ><span slot="prepend">{{ this.lanIp }}</span></Input></FormItem></Col>
+                        <Col span="2" align="center">--</Col>
+                        <Col span="6"><FormItem prop="IpTo"><Input :maxlength="3" v-model="formValidate.IpTo" ></Input></FormItem></Col>
+                    </Row>
+                </FormItem>
+                <!-- <FormItem label="The host number" prop="LanSubnet">
+                    <Input v-model="formValidate.LanSubnet"></Input>
+                </FormItem> -->
+                <FormItem :label="$t('notice.notice_timeout')" prop="NoticeTimeoutVal">
+                    <Input v-model="formValidate.NoticeTimeoutVal" :maxlength="4"></Input>
+                    <span>{{ $t('notice.timeout_help') }}</span>
+                </FormItem>
+                </Col>
+                <FormItem>
+                    <Button type="primary" @click="handleSubmit('formValidate')" :loading="applyLoading">{{ $t('notice.apply') }}</Button>
+                </FormItem>
+            </Form>
+            </Card>
+            <br>
+        </Col>
+        </Row>
+    </div>
+    <!-- 这个不能删除，用于底部显示 -->
+    <slot name="footer"></slot>
+</Col>
+</script>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/iview/iview.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/layout.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+var cs_main = {
+  template:"#main",
+  data:function(){
+    return {
+      globalConfig:globalConfig,
+      applyLoading:false,
+      formValidate: {
+          status:false,
+          NoticeUrl:'',
+          BtnName:'',
+          WhiteListUrl1:'',
+          WhiteListUrl2:'',
+          WhiteListUrl3:'',
+          IpFrom:'',
+          IpTo:'',
+          LanSubnet:'',
+          NoticeTimeoutVal:''
+      },
+      lanIp:''
+    }
+  },
+  computed:{
+    ruleValidate: function(){
+      var _this = this;
+      return {
+          NoticeUrl: [
+            { validator:function(r, v, f){
+                var regin=/^([hH][tT]{2}[pP]:\/\/|[hH][tT]{2}[pP][sS]:\/\/)?(www|WWW)(\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})+$/;
+                if(cs.string(v) == 0){
+                    f(_this.$t('notice.notice_url')+_this.$t('notice.msg1'));
+                }else if(!regin.test(v)){
+                    f(_this.$t('notice.msg2'));
+                }else{
+                    f();
+                }
+              },trigger: 'blur'}
+          ],
+          BtnName: [
+            { validator:function(r, v, f){
+                var re1=/[\@\#\$\%\^\&\*\{\}\:\"\<\>\?\(\)\[\]\+\=]/;
+                if(cs.string(v) == 0){
+                    f(_this.$t('notice.notice_btn')+_this.$t('notice.msg1'));
+                }else if(re1.test(v)){
+                    f(_this.$t('notice.notice_btn')+_this.$t('notice.msg3'));
+                }else{
+                    f();
+                }
+              },trigger: 'blur'}
+          ],
+          WhiteListUrl1: [
+            { validator:function(r, v, f){
+                var regin=/^([hH][tT]{2}[pP]:\/\/|[hH][tT]{2}[pP][sS]:\/\/)?(www|WWW)(\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})+$/;
+                if(v != undefined && v != ""){
+                   if(!regin.test(v)){
+                        f(_this.$t('notice.msg2'));
+                    }else{
+                        f();
+                    } 
+                }else{
+                    f();
+                }
+              },trigger: 'blur'}
+          ],
+          WhiteListUrl2: [
+            { validator:function(r, v, f){
+                var regin=/^([hH][tT]{2}[pP]:\/\/|[hH][tT]{2}[pP][sS]:\/\/)?(www|WWW)(\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})+$/;
+                if(v != undefined && v != ""){
+                   if(!regin.test(v)){
+                        f(_this.$t('notice.msg2'));
+                    }else{
+                        f();
+                    } 
+                }else{
+                    f();
+                }
+              },trigger: 'blur'}
+          ],
+          WhiteListUrl3: [
+            { validator:function(r, v, f){
+                var regin=/^([hH][tT]{2}[pP]:\/\/|[hH][tT]{2}[pP][sS]:\/\/)?(www|WWW)(\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})+$/;
+                if(v != undefined && v != ""){
+                   if(!regin.test(v)){
+                        f(_this.$t('notice.msg2'));
+                    }else{
+                        f();
+                    } 
+                }else{
+                    f();
+                }
+              },trigger: 'blur'}
+          ],
+          IpFrom: [
+            { validator:function(r, v, f){
+                if(v != undefined && v != ""){
+                    v = _this.lanIp + v;
+                    var ret = cs.ip(v);
+                    if (ret == 1 || ret == 2 || ret == 3 || ret == 4) {
+                        f(_this.$t('notice.msg5'));
+                    }else{
+                        f();
+                    }
+                }else{
+                    f();
+                }
+              },trigger: 'blur'}
+          ],
+          IpTo: [
+            { validator:function(r, v, f){
+                if(v != undefined && v != ""){
+                    v = _this.lanIp + v;
+                    var ret = cs.ip(v);
+                    if (ret == 4) {
+                        f(_this.$t('notice.msg5'));
+                    }else{
+                        f();
+                    }
+                }else{
+                    f();
+                }
+              },trigger: 'blur'}
+          ],
+          NoticeTimeoutVal: [
+            { required: true, message: this.$t('notice.notice_timeout')+this.$t('notice.msg1'), trigger: 'blur' },
+            { validator:function(r, v, f){
+                var _s = cs.num_range(v,1,1440);
+                if(_s == 1 || _s == 2){
+                    f(_this.$t('notice.msg4'));
+                }else{
+                  f();
+                }
+              },trigger: 'blur'}
+          ]
+      }
+    }
+  },
+  created:function() {
+    var _this = this;
+    uiPost.getNoticeCfg(function(data){
+        _this.formValidate.status = data.NoticeEnabled == "1" ?true :false;
+        _this.formValidate.NoticeUrl = data.NoticeUrl;
+        _this.formValidate.BtnName = data.BtnName;
+        _this.formValidate.WhiteListUrl1 = data.WhiteListUrl1;
+        _this.formValidate.WhiteListUrl2 = data.WhiteListUrl2;
+        _this.formValidate.WhiteListUrl3 = data.WhiteListUrl3;
+        _this.formValidate.IpFrom = data.IpFrom;
+        _this.formValidate.IpTo = data.IpTo;
+        _this.formValidate.LanSubnet = data.LanSubnet;
+        _this.formValidate.NoticeTimeoutVal = data.NoticeTimeoutVal;
+        if (data.lanIp) {
+            var temp = data.lanIp.split('.');
+            _this.lanIp = temp[0]+'.'+temp[1]+'.'+temp[2]+'.';
+        }
+    })
+  },
+  methods:{
+    handleSubmit: function(name) {
+        var _this = this;
+        _this.applyLoading = true;
+        _this.$refs[name].validate(function(valid){
+            if (valid) {
+                if (_this.formValidate.IpFrom != ""&& _this.formValidate.IpTo !== ""){
+                    if (parseInt(_this.formValidate.IpFrom)>parseInt(_this.formValidate.IpTo)){
+                        _this.$Message.error(_this.$t('notice.msg7'));
+                        _this.applyLoading = false;
+                        return false;
+                    }
+                    if (parseInt(_this.formValidate.IpFrom)<=parseInt(_this.formValidate.LanSubnet)&&
+                       parseInt(_this.formValidate.LanSubnet)<=parseInt(_this.formValidate.IpTo)){
+                        _this.$Message.error(_this.$t('notice.msg8'));
+                        _this.applyLoading = false;
+                        return false;
+                    } 
+                }
+                var postVar = {};
+                postVar.NoticeEnabled = _this.formValidate.status ? "1" : "0";
+                postVar.NoticeUrl = _this.formValidate.NoticeUrl;
+                postVar.BtnName = _this.formValidate.BtnName;
+                postVar.WhiteListUrl1 = _this.formValidate.WhiteListUrl1;
+                postVar.WhiteListUrl2 = _this.formValidate.WhiteListUrl2;
+                postVar.WhiteListUrl3 = _this.formValidate.WhiteListUrl3;
+                postVar.IpFrom = _this.formValidate.IpFrom;
+                postVar.IpTo = _this.formValidate.IpTo;
+                postVar.NoticeTimeoutVal = _this.formValidate.NoticeTimeoutVal;
+                uiPost.setNoticeCfg(postVar,function(data){
+                    _this.applyLoading = false;
+                    location.href = location.href;
+                });
+            }else{
+				_this.applyLoading = false;
+			}
+        });
+    }
+  }
+};
+</script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,58 @@
+[
+	{
+		"typeid":	"1000",
+		"apptype_en":	"COMMUNITY",
+		"apptype_cn":	"社交应用",
+		"app_array":	[{
+				"appid":	"1001",
+				"isfilter":	"0",
+				"appname_en":	"WECHAT",
+				"appname_cn":	"微信"
+			}, {
+				"appid":	"1002",
+				"isfilter":	"1",
+				"appname_en":	"IQIYI",
+				"appname_cn":	"爱奇艺"
+			}, {
+				"appid":	"1003",
+				"isfilter":	"0",
+				"appname_en":	"JD",
+				"appname_cn":	"京东"
+			}]
+	}, {
+		"typeid":	"3000",
+		"apptype_en":	"EFFICTOOL",
+		"apptype_cn":	"效率工具",
+		"app_array":	[{
+				"appid":	"1002",
+				"isfilter":	"1",
+				"appname_en":	"IQIYI",
+				"appname_cn":	"爱奇艺"
+			}, {
+				"appid":	"1003",
+				"isfilter":	"0",
+				"appname_en":	"JD",
+				"appname_cn":	"京东"
+			}]
+	}, {
+		"typeid":	"2000",
+		"apptype_en":	"ENTERAUDIO",
+		"apptype_cn":	"娱乐影音",
+		"app_array":	[{
+				"appid":	"1001",
+				"isfilter":	"0",
+				"appname_en":	"WECHAT",
+				"appname_cn":	"微信"
+			}, {
+				"appid":	"1002",
+				"isfilter":	"1",
+				"appname_en":	"IQIYI",
+				"appname_cn":	"爱奇艺"
+			}, {
+				"appid":	"1003",
+				"isfilter":	"0",
+				"appname_en":	"JD",
+				"appname_cn":	"京东"
+			}]
+	}
+]

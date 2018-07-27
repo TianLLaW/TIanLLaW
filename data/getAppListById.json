@@ -1,0 +1,45 @@
+[{
+		"typeid":	"2"
+	}, {
+		"appid":	"4001",
+		"isEnable":	"0",
+		"appname_en":	"National assault",
+		"appname_cn":	"全民突击",
+		"appname_ct":	"全民突擊 "
+	}, {
+		"appid":	"4002",
+		"isEnable":	"0",
+		"appname_en":	"Wilderness action",
+		"appname_cn":	"荒野行动",
+		"appname_ct":	"荒野行動"
+	}, {
+		"appid":	"4003",
+		"isEnable":	"0",
+		"appname_en":	"Perfect World",
+		"appname_cn":	"完美世界",
+		"appname_ct":	"完美世界"
+	}, {
+		"appid":	"4004",
+		"isEnable":	"0",
+		"appname_en":	"QQ flying car",
+		"appname_cn":	"QQ飞车",
+		"appname_ct":	"QQ飛車"
+	}, {
+		"appid":	"4005",
+		"isEnable":	"0",
+		"appname_en":	"Glory of The king",
+		"appname_cn":	"王者荣耀",
+		"appname_ct":	"王者榮耀"
+	}, {
+		"appid":	"4006",
+		"isEnable":	"0",
+		"appname_en":	"Blade&Soul",
+		"appname_cn":	"剑灵",
+		"appname_ct":	"劍靈"
+	}, {
+		"appid":	"4007",
+		"isEnable":	"0",
+		"appname_en":	"QQ Dancer",
+		"appname_cn":	"QQ炫舞",
+		"appname_ct":	"QQ炫舞"
+	}]

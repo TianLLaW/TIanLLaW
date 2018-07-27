@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+  <title></title>
+  <link rel="stylesheet" href="/plugin/ydui/ydui.rem.css">
+  <link rel="stylesheet" href="/static/css/style.mobile.css">
+</head>
+<body>
+<div id="app"></div>
+<script type="text/x-template" id="main">
+<div class="main">
+<div v-show = "formValidate.WifiIdx">
+<yd-cell-group :title="$t('wifi.title1')">
+    <yd-cell-item>
+        <span slot="left">{{ $t("wifi.status") }}：</span>
+        <yd-switch slot="right" v-model="formValidate.status" :disabled="showWifiOff"></yd-switch>
+    </yd-cell-item>
+    <yd-cell-item>
+        <span slot="left">{{ $t("wifi.ssid") }}：</span>
+        <yd-input slot="right" type="text" v-model="formValidate.ssid" :disabled="isShow2" maxlength="32"></yd-input>
+    </yd-cell-item>
+    <yd-cell-item>
+        <span slot="left">{{ $t("wifi.password") }}：</span>
+        <yd-input slot="right" type="password" v-model="formValidate.password" :disabled="isShow2" maxlength="63" required></yd-input>
+    </yd-cell-item>
+</yd-cell-group>
+</div>
+<div v-show = "formValidate.WifiIdx5g">
+<yd-cell-group :title="$t('wifi.title2')">
+    <yd-cell-item>
+        <span slot="left">{{ $t("wifi.status") }}：</span>
+        <yd-switch slot="right" v-model="formValidate.status5g"></yd-switch>
+    </yd-cell-item>
+    <yd-cell-item>
+        <span slot="left">{{ $t("wifi.ssid") }}：</span>
+        <yd-input slot="right" type="text" v-model="formValidate.ssid5g" :disabled="isShow5" maxlength="32"></yd-input>
+    </yd-cell-item>
+    <yd-cell-item>
+        <span slot="left">{{ $t("wifi.password") }}：</span>
+        <yd-input slot="right" type="password" v-model="formValidate.password5g" :disabled="isShow5" maxlength="63" required></yd-input>
+    </yd-cell-item>
+</yd-cell-group>
+</div>
+<yd-button-group>
+    <yd-button size="large" type="primary" @click.native="handleSubmit">{{ $t('wifi.apply') }}</yd-button>
+</yd-button-group>
+
+<!-- 不能删除 -->
+<br>
+<slot name="footer"></slot>
+</div>
+</script>
+</body>
+<script src="/plugin/vue.js"></script>
+<script src="/plugin/vue-i18n.js"></script>
+<script src="/plugin/ydui/ydui.rem.js"></script>
+<script src="/plugin/jquery-1.11.3.min.js"></script>
+<script src="/plugin/util.js"></script>
+<script src="/static/js/language.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="/static/js/common.js"></script>
+<script src="/static/js/topicurl.js"></script>
+<script>
+var cs_main = {
+  template:"#main",
+  data:function(){
+    var _this = this;
+    return {
+      globalConfig:globalConfig,
+      menu:mobileMenu,
+      selected:'status',
+      popupVisible:true,
+    isShow5:false,
+    isShow2:false,
+      formValidate: {
+          status: true,
+          ssid:'',
+          password:'',
+          status5g: true,
+          ssid5g:'',
+          password5g:'',
+      WifiIdx:false,
+      WifiIdx5g:false
+      },
+      showWifiOff:false,
+    }
+  },
+  computed:{
+    
+  },
+  watch:{
+    "formValidate.status":function(){
+      if(this.formValidate.status == true){
+        this.isShow2 = false;
+      }else{
+        this.isShow2 = true;
+      }
+    },
+    "formValidate.status5g":function(){
+      if(this.formValidate.status5g == true){
+        this.isShow5 = false;
+      }else{
+        this.isShow5 = true;
+      }
+    }
+  },
+  created:function(){
+      globalConfig.iHeader = this.$t('menu.wireless');
+      localStorage.setItem('cs_mobile_menu', 'wifi');
+      var _this = this;
+      var postVar = {};
+      postVar.wifiIdx = "1"; 
+      uiPost.getWiFiBasicConfig(postVar,function(data) {
+        if(data.WifiIdx == 1){
+          _this.formValidate.status     = data.wifiOff == 0 ? true : false;
+          _this.formValidate.ssid       = data.ssid;
+          _this.formValidate.password   = data.key;
+          _this.formValidate.WifiIdx    = true;
+        }
+      
+          postVar.wifiIdx = "0"; 
+          uiPost.getWiFiBasicConfig(postVar,function(data) {
+            if(data.WifiIdx == 0){
+              _this.formValidate.status5g     = data.wifiOff == 0 ? true : false;
+              _this.formValidate.ssid5g       = data.ssid;
+              _this.formValidate.password5g   = data.key;
+              _this.formValidate.WifiIdx5g    = true;
+            }
+          });
+      });
+      
+  },
+  methods:{
+    handleSubmit: function () {
+        var _this = this;
+        var _s = cs.ssid(this.formValidate.ssid);
+        if(_s == 0) {
+          this.$dialog.notify({mes:"2.4G "+_this.$t('wifi.msg1')});
+          return false;
+        }else if(_s == 1){
+          this.$dialog.notify({mes:"2.4G "+_this.$t('wifi.msg2')});
+          return false;
+        }else if(_s == 2){
+          this.$dialog.notify({mes:"2.4G "+_this.$t('wifi.msg3')});
+          return false;
+        }
+        if(this.formValidate.password != ""){
+          if(_this.formValidate.password.length<8 || _this.formValidate.password.length>63 || 0 == cs.ascii(_this.formValidate.password)){
+              this.$dialog.notify({mes:"2.4G "+_this.$t('wifi.msg8')});
+              return false;
+          }
+        }
+        var _s = cs.ssid(this.formValidate.ssid5g);
+        if(_s == 0) {
+          this.$dialog.notify({mes:"5G "+_this.$t('wifi.msg1')});
+          return false;
+        }else if(_s == 1){
+          this.$dialog.notify({mes:"5G "+_this.$t('wifi.msg2')});
+          return false;
+        }else if(_s == 2){
+          this.$dialog.notify({mes:"5G "+_this.$t('wifi.msg3')});
+          return false;
+        }
+        if(this.formValidate.password5g != ""){
+          if(_this.formValidate.password5g.length<8 || _this.formValidate.password5g.length>63 || 0 == cs.ascii(_this.formValidate.password5g)){
+              this.$dialog.notify({mes:"2.4G "+_this.$t('wifi.msg8')});
+              return false;
+          }
+        }
+        var postVar = {};
+        postVar.WiFiOff_2G    = _this.formValidate.status == true ? 0 : 1;
+        postVar.ssid_2G       = _this.formValidate.ssid;
+        postVar.key_2G     = _this.formValidate.password;
+          postVar.WiFiOff_5G  = _this.formValidate.status5g == true ? 0 : 1;
+          postVar.ssid_5G     = _this.formValidate.ssid5g;
+          postVar.key_5G   = _this.formValidate.password5g;
+          uiPost.setWiFiBasicConfig(postVar,function(data){
+            _this.$dialog.toast({
+                mes: _this.$t('changepwd.msg7'),
+                icon: 'success',
+                callback:function(){
+                  location.href = location.href;
+                }
+            });
+          });
+    }
+  }
+};
+</script>
+<script src="/static/js/main.mobile.js"></script>
+</html>
